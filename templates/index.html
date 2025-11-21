@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能教材语料生成平台</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>智能教材语料生成与校验平台</h1>
+            <p class="subtitle">Intelligent Textbook Corpus Generation Platform</p>
+        </header>
+
+        <main>
+            <section class="upload-section">
+                <h2>上传教材</h2>
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                    <div class="upload-prompt">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>点击或拖拽PDF文件到此处上传</p>
+                        <p class="file-size-hint">最大文件大小: 100 MB</p>
+                    </div>
+                </div>
+                <button id="uploadBtn" class="btn btn-primary" style="display: none;">开始上传</button>
+                <div id="uploadProgress" class="progress-bar" style="display: none;">
+                    <div class="progress-fill"></div>
+                    <span class="progress-text">0%</span>
+                </div>
+            </section>
+
+            <section class="books-section">
+                <h2>我的教材库</h2>
+                <div id="booksList" class="books-grid">
+                    <!-- Books will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Metadata Confirmation Modal -->
+            <div id="metadataModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <h3>确认教材信息</h3>
+                    <p class="modal-hint">请验证并完善以下信息</p>
+                    
+                    <form id="metadataForm">
+                        <input type="hidden" id="modal_book_id">
+                        
+                        <div class="form-group">
+                            <label for="modal_title">书名 *</label>
+                            <input type="text" id="modal_title" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="modal_author">作者</label>
+                            <input type="text" id="modal_author">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="modal_publisher">出版社</label>
+                                <input type="text" id="modal_publisher">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="modal_year">出版年份</label>
+                                <input type="number" id="modal_year" min="1900" max="2099">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="modal_isbn">ISBN</label>
+                            <input type="text" id="modal_isbn">
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeMetadataModal()">取消</button>
+                            <button type="submit" class="btn btn-primary">确认并继续</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
