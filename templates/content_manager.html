@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内容管理 - 智能教材语料生成平台</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/reading.css">
+    <link rel="stylesheet" href="/static/css/content_manager.css">
+    <!-- MathJax for LaTeX rendering -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar with filters -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="header-top">
+                    <h3>内容筛选</h3>
+                    <a href="/reading/{{ book_id }}" class="btn-back">← 返回阅读</a>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h4>搜索</h4>
+                <div class="search-box">
+                    <input type="text" id="keywordSearch" placeholder="搜索题目或答案...">
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="section-header">
+                    <h4>验证进度</h4>
+                </div>
+                <div class="progress-dashboard" id="progressDashboard">
+                    <div class="progress-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">总生成</span>
+                            <span class="stat-value" id="totalGenerated">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">已校验</span>
+                            <span class="stat-value" id="totalVerified">0</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="overallProgressFill" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-text" id="overallProgressText">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h4>内容类型</h4>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="contentType" value="qa" checked>
+                        问答对
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="contentType" value="exercise" checked>
+                        习题
+                    </label>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h4>状态</h4>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="status" value="generated" checked>
+                        已生成
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="status" value="verified" checked>
+                        已校验
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="status" value="pending">
+                        待生成
+                    </label>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="section-header">
+                    <h4>批量操作</h4>
+                </div>
+                <div class="action-panel">
+                    <label class="checkbox-label select-all-label">
+                        <input type="checkbox" id="selectAllContent">
+                        全选所有内容
+                    </label>
+                    <div class="selection-info">
+                        <span class="selection-count" id="selectionCount">已选 0 项</span>
+                    </div>
+                    <button id="exportBtn" class="btn primary full-width" disabled>
+                        <span class="icon">📥</span> 导出选中项
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chapter filter removed as requested -->
+        </aside>
+
+        <!-- Main content area -->
+        <main class="main-content">
+            <div class="content-header">
+                <div class="header-left">
+                    <h2>生成内容管理</h2>
+                    <span class="result-count" id="resultCount">加载中...</span>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn secondary">
+                        <span class="icon">🔄</span> 刷新
+                    </button>
+                </div>
+            </div>
+
+            <div class="content-list" id="contentList">
+                <!-- Content items loaded via JS -->
+                <div class="loading-state">正在加载内容...</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Modal - Full Screen Overlay -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-editor">
+            <div class="editor-header">
+                <div class="editor-title">
+                    <h2>📝 编辑内容</h2>
+                    <span class="editor-subtitle">支持 LaTeX 公式实时预览</span>
+                </div>
+                <button class="close-btn" onclick="closeEditModal()">
+                    <span>✕</span>
+                </button>
+            </div>
+
+            <div class="editor-body">
+                <form id="editForm">
+                    <input type="hidden" id="editContentId">
+
+                    <!-- Question Field -->
+                    <div class="editor-field">
+                        <div class="field-header">
+                            <label>题干 / 问题</label>
+                            <span class="field-hint">支持 LaTeX: 使用 $...$ 或 $$...$$</span>
+                        </div>
+                        <div class="split-panes">
+                            <div class="editor-pane">
+                                <div class="pane-label">编辑</div>
+                                <textarea id="editQuestion" rows="6" class="latex-input" data-preview="previewQuestion"
+                                    placeholder="输入题干..."></textarea>
+                            </div>
+                            <div class="preview-pane">
+                                <div class="pane-label">预览</div>
+                                <div id="previewQuestion" class="latex-preview"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Options Field (for exercises) -->
+                    <div class="editor-field" id="editOptionsGroup" style="display: none;">
+                        <div class="field-header">
+                            <label>选项</label>
+                            <span class="field-hint">每行一个选项</span>
+                        </div>
+                        <div class="split-panes">
+                            <div class="editor-pane">
+                                <div class="pane-label">编辑</div>
+                                <textarea id="editOptions" rows="5" class="latex-input" data-preview="previewOptions"
+                                    placeholder="A. 选项1&#10;B. 选项2&#10;C. 选项3&#10;D. 选项4"></textarea>
+                            </div>
+                            <div class="preview-pane">
+                                <div class="pane-label">预览</div>
+                                <div id="previewOptions" class="latex-preview"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Answer Field -->
+                    <div class="editor-field">
+                        <div class="field-header">
+                            <label>答案</label>
+                            <span class="field-hint">简洁准确</span>
+                        </div>
+                        <div class="split-panes">
+                            <div class="editor-pane">
+                                <div class="pane-label">编辑</div>
+                                <textarea id="editAnswer" rows="4" class="latex-input" data-preview="previewAnswer"
+                                    placeholder="输入答案..."></textarea>
+                            </div>
+                            <div class="preview-pane">
+                                <div class="pane-label">预览</div>
+                                <div id="previewAnswer" class="latex-preview"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Explanation Field -->
+                    <div class="editor-field">
+                        <div class="field-header">
+                            <label>解析</label>
+                            <span class="field-hint">详细解释</span>
+                        </div>
+                        <div class="split-panes">
+                            <div class="editor-pane">
+                                <div class="pane-label">编辑</div>
+                                <textarea id="editExplanation" rows="6" class="latex-input"
+                                    data-preview="previewExplanation" placeholder="输入解析..."></textarea>
+                            </div>
+                            <div class="preview-pane">
+                                <div class="pane-label">预览</div>
+                                <div id="previewExplanation" class="latex-preview"></div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="editor-footer">
+                <button class="btn-cancel" onclick="closeEditModal()">
+                    <span class="icon">✕</span> 取消
+                </button>
+                <button class="btn-save" onclick="saveContentEdit()">
+                    <span class="icon">💾</span> 保存修改
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BOOK_ID = {{ book_id }};
+    </script>
+    <script src="/static/js/content_manager.js"></script>
+</body>
+
+</html>

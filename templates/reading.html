@@ -30,7 +30,12 @@
             <div class="sidebar-header">
                 <div class="header-top">
                     <h3 id="bookTitle">Loading...</h3>
-                    <a href="/" class="btn-back">← 返回</a>
+                    <div class="header-links">
+                        <a href="/" class="btn-back" title="返回首页">← 返回</a>
+                        <a href="/content_manager/{{ book_id }}" class="btn-icon-link" title="内容管理">
+                            <span class="icon">📋</span>
+                        </a>
+                    </div>
                 </div>
                 <div class="header-controls">
                     <label class="checkbox-label">
@@ -71,69 +76,81 @@
                 <h3>生成控制台</h3>
             </div>
 
-            <!-- Model selection -->
-            <div class="control-section">
-                <label for="modelSelect">选择模型</label>
-                <select id="modelSelect" class="model-select">
-                    <!-- Models will be loaded dynamically -->
-                </select>
-            </div>
+            <!-- Combined Control Card -->
+            <div class="control-card">
+                <div class="control-section">
+                    <label for="modelSelect" class="section-label">选择模型</label>
+                    <select id="modelSelect" class="model-select">
+                        <!-- Models will be loaded dynamically -->
+                    </select>
+                </div>
 
-            <!-- Generation buttons -->
-            <div class="control-section">
-                <h4>内容生成</h4>
-                <button id="generateQA" class="btn btn-primary btn-block">
-                    <span class="icon">💬</span>
-                    生成问答对
-                </button>
-                <button id="generateExercise" class="btn btn-primary btn-block">
-                    <span class="icon">✏️</span>
-                    生成习题
-                </button>
-            </div>
+                <div class="divider"></div>
 
-            <!-- Prompt template viewer -->
-            <div class="control-section">
-                <h4>Prompt 模板</h4>
-                <button id="viewPrompt" class="btn btn-secondary btn-block">
-                    查看/编辑 Prompt
-                </button>
-            </div>
-
-            <!-- Progress indicator -->
-            <div class="control-section">
-                <h4>验证进度</h4>
-                <div class="progress-indicator" id="progressIndicator">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                <div class="control-section">
+                    <label class="section-label">生成设置</label>
+                    <div class="control-row">
+                        <div class="count-input-wrapper">
+                            <span class="input-label">数量</span>
+                            <input type="number" id="generateCount" value="8" min="1" max="20" class="count-input">
+                        </div>
+                        <button id="viewPrompt" class="btn-icon-text" title="编辑 Prompt">
+                            <span class="icon">⚙️</span> 模板
+                        </button>
                     </div>
-                    <p class="progress-text" id="progressText">0 / 0 (0%)</p>
                 </div>
 
-                <!-- Batch Generation Progress -->
-                <div id="batchProgress" class="batch-progress" style="display: none;">
-                    <h4>批量生成进度</h4>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="batchProgressFill" style="width: 0%"></div>
+                <div class="control-section">
+                    <div class="button-grid">
+                        <button id="generateQaBtn" class="btn primary large-btn">
+                            <span class="icon">❓</span> 生成问答
+                        </button>
+                        <button id="generateExerciseBtn" class="btn primary large-btn">
+                            <span class="icon">📝</span> 生成习题
+                        </button>
                     </div>
-                    <p class="progress-text" id="batchProgressText">正在生成 0/0...</p>
                 </div>
+
+                <div id="generationStatus" class="status-message"></div>
+
+                <!-- Batch Generation Progress - Enhanced Display -->
+                <div id="batchProgress" style="display: none;">
+                    <div class="batch-progress-container">
+                        <div class="batch-progress-header">
+                            <span class="progress-icon">⚡</span>
+                            <span>批量生成进行中...</span>
+                        </div>
+                        <div class="batch-progress-detail" id="batchProgressDetail">
+                            准备开始...
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="batchProgressFill" style="width: 0%"></div>
+                            </div>
+                            <div class="progress-text" id="batchProgressText">0/0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Verification Progress (Moved here) -->
+                <div class="control-section" id="verificationProgressSection" style="display: none;">
+                    <label class="section-label">校验进度</label>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">0 / 0 (0%)</div>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- Export button -->
-            <div class="control-section">
-                <button id="exportBook" class="btn btn-success btn-block">
-                    <span class="icon">📥</span>
-                    导出数据
-                </button>
-            </div>
-
-            <!-- Generated content display -->
-            <div class="control-section">
-                <h4>已生成内容</h4>
-                <div id="generatedContent" class="generated-content-list">
-                    <!-- Generated content cards will appear here -->
-                </div>
+            <div class="control-card">
+                <a href="/content_manager/{{ book_id }}" class="btn secondary full-width btn-content-manager">
+                    <span class="icon">📊</span> 内容管理
+                </a>
             </div>
         </aside>
     </div>
@@ -166,7 +183,7 @@
                 <button class="tab-btn" data-type="exercise">习题模板</button>
             </div>
             <textarea id="promptEditor" rows="15" class="prompt-editor"></textarea>
-            <p class="hint">模板中可使用 {chapter_title} 和 {chapter_content} 作为占位符</p>
+            <p class="hint">模板中可使用占位符: {chapter_title}, {chapter_content}, {count} (生成数量)</p>
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closePromptModal()">取消</button>
                 <button type="button" class="btn btn-primary" onclick="savePrompt()">保存修改</button>

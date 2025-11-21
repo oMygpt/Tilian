@@ -194,3 +194,20 @@ class LLMRouter:
 
 # Global router instance
 llm_router = LLMRouter()
+
+# Backwards compatibility: alias and wrapper method
+class LLMClient:
+    """Wrapper for backward compatibility"""
+    def __init__(self, router):
+        self.router = router
+        self.default_provider = 'deepseek'  # Default to deepseek-chat
+    
+    def generate_text(self, prompt: str, provider_id: str = None, **kwargs) -> str:
+        """Generate text using default or specified provider"""
+        pid = provider_id or self.default_provider
+        # Fallback to first available provider if default not available
+        if pid not in self.router.providers and self.router.providers:
+            pid = list(self.router.providers.keys())[0]
+        return self.router.generate(pid, prompt, **kwargs)
+
+llm_client = LLMClient(llm_router)

@@ -151,6 +151,87 @@ class ExcelExporter:
         for col, width in column_widths.items():
             ws.column_dimensions[col].width = width
     
+    def export_content_list(self, content_list: List[Dict], book_title: str, output_path: Path = None) -> Path:
+        """
+        Export a list of content items to Excel
+        
+        Args:
+            content_list: List of content dictionaries (must include chapter_title)
+            book_title: Title of the book
+            output_path: Output file path (optional)
+            
+        Returns:
+            Path to exported file
+        """
+        # Generate default output path if not provided
+        if not output_path:
+            timestamp = __import__('datetime').datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_path = config.EXPORT_DIR / f"{book_title}_export_{timestamp}.xlsx"
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Generated Content"
+        
+        # Write headers
+        self._write_headers(ws)
+        
+        row = 2
+        for content in content_list:
+            ws.cell(row, 1, content.get('chapter_id', ''))
+            ws.cell(row, 2, content.get('chapter_title', ''))
+            
+            # Content excerpt (not available in search results usually, but handle if present)
+            ws.cell(row, 3, '')
+            
+            # Content type
+            content_type_cn = '问答' if content['content_type'] == 'qa' else '习题'
+            ws.cell(row, 4, content_type_cn)
+            
+            # Question
+            ws.cell(row, 5, content['question'])
+            
+            # Options
+            import json
+            options_str = ''
+            if content.get('options_json'):
+                try:
+                    options = json.loads(content['options_json'])
+                    options_str = '\n'.join(options)
+                except:
+                    options_str = content['options_json']
+            ws.cell(row, 6, options_str)
+            
+            # Answer
+            ws.cell(row, 7, content['answer'])
+            
+            # Explanation
+            ws.cell(row, 8, content.get('explanation', ''))
+            
+            # Model
+            model_info = f"{content.get('model_name', '')}"
+            if content.get('model_version'):
+                model_info += f" ({content['model_version']})"
+            ws.cell(row, 9, model_info)
+            
+            # Status
+            status_cn = {
+                'pending': '待生成',
+                'generated': '已生成',
+                'verified': '已校验'
+            }.get(content['status'], content['status'])
+            ws.cell(row, 10, status_cn)
+            
+            row += 1
+            
+        # Adjust column widths
+        self._adjust_column_widths(ws)
+        
+        # Save workbook
+        wb.save(output_path)
+        
+        return output_path
+
     def export_to_csv(self, book_id: int, output_path: Path = None) -> Path:
         """
         Export to CSV format

@@ -8,6 +8,7 @@ from typing import Dict, Any
 def format_prompt(template: str, **kwargs) -> str:
     """
     Format a prompt template with provided variables
+    Uses simple string replacement to avoid conflicts with JSON curly braces
     
     Args:
         template: Prompt template with {variable} placeholders
@@ -16,10 +17,13 @@ def format_prompt(template: str, **kwargs) -> str:
     Returns:
         Formatted prompt string
     """
-    return template.format(**kwargs)
+    result = template
+    for key, value in kwargs.items():
+        result = result.replace(f'{{{key}}}', str(value))
+    return result
 
 
-def get_qa_prompt(chapter_title: str, chapter_content: str, custom_template: str = None) -> str:
+def get_qa_prompt(chapter_title: str, chapter_content: str, custom_template: str = None, count: int = 8) -> str:
     """
     Get formatted Q&A generation prompt
     
@@ -27,13 +31,14 @@ def get_qa_prompt(chapter_title: str, chapter_content: str, custom_template: str
         chapter_title: Title of the chapter
         chapter_content: Content of the chapter
         custom_template: Optional custom template (if None, uses default)
+        count: Number of items to generate
     
     Returns:
         Formatted prompt
     """
     if custom_template is None:
         # Default template - should match database default
-        custom_template = '''你是一位经验丰富的教师。基于以下教材内容,生成5个高质量的问答对。
+        custom_template = '''你是一位经验丰富的教师。基于以下教材内容,生成{count}个高质量的问答对。
 
 教材章节:{chapter_title}
 
@@ -58,11 +63,12 @@ def get_qa_prompt(chapter_title: str, chapter_content: str, custom_template: str
     return format_prompt(
         custom_template,
         chapter_title=chapter_title,
-        chapter_content=chapter_content
+        chapter_content=chapter_content,
+        count=count
     )
 
 
-def get_exercise_prompt(chapter_title: str, chapter_content: str, custom_template: str = None) -> str:
+def get_exercise_prompt(chapter_title: str, chapter_content: str, custom_template: str = None, count: int = 8) -> str:
     """
     Get formatted exercise generation prompt
     
@@ -70,13 +76,14 @@ def get_exercise_prompt(chapter_title: str, chapter_content: str, custom_templat
         chapter_title: Title of the chapter
         chapter_content: Content of the chapter
         custom_template: Optional custom template (if None, uses default)
+        count: Number of items to generate
     
     Returns:
         Formatted prompt
     """
     if custom_template is None:
         # Default template - should match database default
-        custom_template = '''你是一位经验丰富的教师。基于以下教材内容,生成5道高质量的练习题。
+        custom_template = '''你是一位经验丰富的教师。基于以下教材内容,生成{count}道高质量的练习题。
 
 教材章节:{chapter_title}
 
@@ -104,7 +111,8 @@ def get_exercise_prompt(chapter_title: str, chapter_content: str, custom_templat
     return format_prompt(
         custom_template,
         chapter_title=chapter_title,
-        chapter_content=chapter_content
+        chapter_content=chapter_content,
+        count=count
     )
 
 
