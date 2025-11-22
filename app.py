@@ -87,9 +87,11 @@ def upload_file():
         return jsonify({'error': str(e)}), 500
 
 
+from parsers.epub_parser import epub_parser
+
 @app.route('/api/parse', methods=['POST'])
 def start_parsing():
-    """Start PDF parsing with MinerU"""
+    """Start parsing process (MinerU for PDF, direct for MD/TXT/EPUB)"""
     data = request.json
     book_id = data.get('book_id')
     
@@ -101,26 +103,120 @@ def start_parsing():
         return jsonify({'error': 'Book not found'}), 404
     
     try:
+        file_path = Path(book['source_file_path'])
+        suffix = file_path.suffix.lower()
+        
         # Update book status
         db.update_book(book_id, status='parsing')
         
-        # Start async parsing
-        file_path = Path(book['source_file_path'])
-        batch_id, _, _ = mineru_client.parse_pdf(file_path)
-        
-        # Create parse task record
-        db.create_parse_task(book_id, batch_id)
-        
-        # Start background thread to monitor parsing
-        threading.Thread(
-            target=monitor_parsing_task,
-            args=(batch_id, book_id)
-        ).start()
-        
-        return jsonify({
-            'success': True,
-            'task_id': batch_id  # Actually batch_id, kept as task_id for API compatibility
-        })
+        if suffix == '.pdf':
+            # PDF: Use MinerU (Async)
+            batch_id, _, _ = mineru_client.parse_pdf(file_path)
+            
+            # Create parse task record
+            db.create_parse_task(book_id, batch_id)
+            
+            # Start background thread to monitor parsing
+            threading.Thread(
+                target=monitor_parsing_task,
+                args=(batch_id, book_id)
+            ).start()
+            
+            return jsonify({
+                'success': True,
+                'task_id': batch_id
+            })
+            
+        elif suffix in ['.md', '.txt', '.epub']:
+            # MD/TXT/EPUB: Direct parsing (Synchronous)
+            import uuid
+            task_id = str(uuid.uuid4().hex)
+            
+            # Create task record (marked as processing initially)
+            db.create_parse_task(book_id, task_id)
+            
+            # Process directly
+            try:
+                chapters = []
+                
+                # 1. Parse content based on type
+                if suffix == '.md':
+                    chapters = chapter_parser.parse_chapters_from_md(file_path)
+                    # Extract metadata
+                    md_meta = extract_metadata_from_md(file_path)
+                    db.update_book(book_id, **md_meta)
+                    
+                elif suffix == '.epub':
+                    # Parse EPUB
+                    content, metadata = epub_parser.parse(file_path)
+                    
+                    # Update metadata
+                    db.update_book(book_id, 
+                        author=metadata.get('author'),
+                        publisher=metadata.get('publisher'),
+                        publish_date=metadata.get('date'),
+                        language=metadata.get('language')
+                    )
+                    
+                    # Save intermediate MD file
+                    md_path = file_path.with_suffix('.md')
+                    with open(md_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    
+                    # Parse chapters from the generated Markdown
+                    chapters = chapter_parser.parse_chapters_from_md(md_path)
+                    
+                else: # .txt
+                    # Treat TXT as a single chapter or simple markdown
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Try parsing as MD first (in case it has headers)
+                    chapters = chapter_parser.parse_chapters_from_md(file_path)
+                    
+                    if not chapters:
+                        # Fallback: Single chapter
+                        chapters = [{
+                            'title': file_path.stem,
+                            'content': content,
+                            'level': 1,
+                            'order': 0,
+                            'token_count': chapter_parser.count_tokens(content)
+                        }]
+                
+                # 2. Save chapters
+                for chapter in chapters:
+                    db.create_chapter(
+                        book_id=book_id,
+                        title=chapter['title'],
+                        content_md=chapter['content'],
+                        token_count=chapter.get('token_count', 0),
+                        order_index=chapter['order'],
+                        level=chapter['level']
+                    )
+                
+                # 3. Update status
+                db.update_book(
+                    book_id, 
+                    status='parsed',
+                    parsed_md_path=str(file_path.with_suffix('.md')) if suffix == '.epub' else str(file_path)
+                )
+                db.update_parse_task(task_id, status='completed', progress=100)
+                
+                return jsonify({
+                    'success': True,
+                    'task_id': task_id
+                })
+                
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                db.update_book(book_id, status='error', error_message=str(e))
+                db.update_parse_task(task_id, status='failed', error_message=str(e))
+                raise e
+                
+        else:
+            return jsonify({'error': f'Unsupported file type: {suffix}'}), 400
     
     except Exception as e:
         db.update_book(book_id, status='error', error_message=str(e))

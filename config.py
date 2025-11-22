@@ -73,7 +73,7 @@ DEBUG = FLASK_ENV == 'development'
 
 # File upload settings
 MAX_UPLOAD_SIZE = 500 * 1024 * 1024  # 500 MB
-ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc', 'md'}
+ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc', 'md', 'txt', 'epub'}
 
 # Background task settings
 PARSE_TASK_TIMEOUT = int(os.getenv('PARSE_TASK_TIMEOUT', 3600))  # 1 hour default
