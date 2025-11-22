@@ -142,30 +142,38 @@ class LLMRouter:
         self._initialize_providers()
     
     def _initialize_providers(self):
-        """Initialize available providers based on API keys"""
-        if config.GEMINI_API_KEY:
-            self.providers['gemini'] = GeminiProvider(
-                config.GEMINI_API_KEY,
-                config.LLM_MODELS['gemini']
-            )
-        
-        if config.OPENAI_API_KEY:
-            self.providers['chatgpt'] = ChatGPTProvider(
-                config.OPENAI_API_KEY,
-                config.LLM_MODELS['chatgpt']
-            )
-        
-        if config.DEEPSEEK_API_KEY:
-            self.providers['deepseek'] = DeepSeekProvider(
-                config.DEEPSEEK_API_KEY,
-                config.LLM_MODELS['deepseek']
-            )
-        
-        if config.KIMI_API_KEY:
-            self.providers['kimi'] = KimiProvider(
-                config.KIMI_API_KEY,
-                config.LLM_MODELS['kimi']
-            )
+        """Initialize available providers based on API keys and config"""
+        for model_key, model_config in config.LLM_MODELS.items():
+            provider_type = model_config.get('provider')
+            
+            # Skip if provider type missing
+            if not provider_type:
+                continue
+                
+            # Initialize based on provider type and API key availability
+            if provider_type == 'gemini' and config.GEMINI_API_KEY:
+                self.providers[model_key] = GeminiProvider(
+                    config.GEMINI_API_KEY,
+                    model_config
+                )
+            
+            elif provider_type == 'chatgpt' and config.OPENAI_API_KEY:
+                self.providers[model_key] = ChatGPTProvider(
+                    config.OPENAI_API_KEY,
+                    model_config
+                )
+            
+            elif provider_type == 'deepseek' and config.DEEPSEEK_API_KEY:
+                self.providers[model_key] = DeepSeekProvider(
+                    config.DEEPSEEK_API_KEY,
+                    model_config
+                )
+            
+            elif provider_type == 'kimi' and config.KIMI_API_KEY:
+                self.providers[model_key] = KimiProvider(
+                    config.KIMI_API_KEY,
+                    model_config
+                )
     
     def get_available_models(self) -> List[Dict[str, Any]]:
         """Get list of available models"""
@@ -200,7 +208,7 @@ class LLMClient:
     """Wrapper for backward compatibility"""
     def __init__(self, router):
         self.router = router
-        self.default_provider = 'deepseek'  # Default to deepseek-chat
+        self.default_provider = 'deepseek-v3'  # Default to deepseek-v3
     
     def generate_text(self, prompt: str, provider_id: str = None, **kwargs) -> str:
         """Generate text using default or specified provider"""

@@ -157,6 +157,20 @@ class ChapterParser:
         Returns:
             List of chapter dicts
         """
+        # Use the new regex-based parser for better handling of flattened headers
+        return self.parse_chapters_by_regex(md_path)
+
+    def parse_chapters_by_regex(self, md_path: Path) -> List[Dict]:
+        """
+        Parse chapters using strict regex patterns to identify top-level chapters.
+        Merges subsections (e.g., 1.1, 1.1.1) into the parent chapter.
+        
+        Args:
+            md_path: Path to Markdown file
+            
+        Returns:
+            List of chapter dicts
+        """
         chapters = []
         
         try:
@@ -165,61 +179,117 @@ class ChapterParser:
             
             lines = content.split('\n')
             
-            # Find all level-1 headings that look like chapters
-            chapter_heads = []
-            for i, line in enumerate(lines):
-                # Check if it's a level-1 heading
-                if not line.startswith('# '):
-                    continue
-                
-                title = line[2:].strip()
-                
-                # Skip TOC and metadata
-                skip_titles = ['目录', 'table of contents', 'contents']
-                if title.lower() in skip_titles:
-                    continue
-                
-                # Check if it looks like a chapter
-                if self.is_chapter_header(title):
-                    chapter_num = self.extract_chapter_number(title)
-                    chapter_heads.append((i, title, chapter_num))
+            # Regex patterns for top-level chapters
+            # 1. "第X章" or "第X篇" or "第X部分"
+            # 2. "Chapter X"
+            # 3. "X. Title" (but NOT "X.Y Title")
+            # 4. Specific keywords: 序言, 前言, 目录, 参考文献, 附录, 致谢
             
-            # If no chapter headers found, fall back to all level-1 headings
-            if not chapter_heads:
-                print("No chapter headers found, using all level-1 headings")
-                for i, line in enumerate(lines):
-                    if line.startswith('# '):
-                        title = line[2:].strip()
-                        skip_titles = ['目录', 'table of contents', 'contents']
-                        if title.lower() not in skip_titles and len(title) >= 2:
-                            chapter_num = self.extract_chapter_number(title)
-                            chapter_heads.append((i, title, chapter_num))
+            chapter_patterns = [
+                r"^#+\s*第[一二三四五六七八九十零〇\d]+[章篇部分]",  # 第X章
+                r"^#+\s*Chapter\s+\d+",  # Chapter X
+                r"^#+\s*\d+\s+[^\.\d]",  # 1 Title (but not 1.1)
+                # Common Front Matter & Back Matter keywords
+                r"^#+\s*(序言|前言|目录|参考文献|附录|致谢|后记|结语|摘要|索引|术语表|版权|作者|推荐语|Introduction|Preface|Contents|References|Appendix|Acknowledgement|Conclusion|Abstract|Index|Glossary|Copyright|About|Praise)", 
+            ]
             
-            # Extract content for each chapter
-            for order, (line_idx, title, chapter_num) in enumerate(chapter_heads):
-                # Find the end of this chapter (start of next chapter or end of file)
-                next_idx = chapter_heads[order + 1][0] if order + 1 < len(chapter_heads) else len(lines)
-                
-                # Extract content
-                chapter_lines = lines[line_idx + 1:next_idx]  # Skip the heading line itself
-                content_text = '\n'.join(chapter_lines).strip()
-                
-                chapters.append({
-                    'title': title,
-                    'content': content_text,
-                    'level': 1,
-                    'order': order,
-                    'chapter_num': chapter_num,
-                    'token_count': 0  # Will be calculated later
-                })
+            # Compile regex for performance
+            combined_pattern = re.compile('|'.join(chapter_patterns), re.IGNORECASE)
             
-            print(f"Parsed {len(chapters)} chapters from markdown")
-        
+            # TOC detection patterns
+            toc_header_pattern = re.compile(r'^\s*(目录|Contents|Table of Contents)\s*$', re.IGNORECASE)
+            # Matches lines ending with page numbers (digits or roman numerals)
+            # e.g. "Chapter 1 ... 10", "Section 1 5", "Preface i"
+            toc_entry_pattern = re.compile(r'.*(\s+|…|\.+)(\d+|[IVXivx]+)\s*$', re.IGNORECASE)
+            
+            current_chapter = None
+            current_content = []
+            chapter_order = 0
+            in_toc = False  # Flag to track if we are inside the Table of Contents
+            
+            for line in lines:
+                line_stripped = line.strip()
+                
+                # Check if line matches a chapter header
+                if combined_pattern.match(line_stripped):
+                    title = re.sub(r'^#+\s*', '', line_stripped) # Remove #
+                    
+                    # Check if this is a TOC header
+                    is_toc_header = toc_header_pattern.match(title)
+                    
+                    # Check if this looks like a TOC entry (ends with number)
+                    # Only relevant if we are currently inside a TOC or just hit the TOC header
+                    is_toc_entry = False
+                    if in_toc and not is_toc_header:
+                         if toc_entry_pattern.match(title):
+                             is_toc_entry = True
+                    
+                    if is_toc_entry:
+                        # It's a fake chapter header (TOC entry), treat as content of the current chapter (TOC)
+                        if current_chapter:
+                            current_content.append(line)
+                    else:
+                        # Real new chapter
+                        # Save previous chapter if exists
+                        if current_chapter:
+                            current_chapter['content'] = '\n'.join(current_content).strip()
+                            current_chapter['token_count'] = self.count_tokens(current_chapter['content'])
+                            chapters.append(current_chapter)
+                        
+                        # Start new chapter
+                        current_chapter = {
+                            'title': title,
+                            'content': '', # Will be filled later
+                            'level': 1,
+                            'order': chapter_order,
+                            'chapter_num': self.extract_chapter_number(title),
+                            'token_count': 0
+                        }
+                        current_content = [] # Reset content buffer
+                        chapter_order += 1
+                        
+                        # Update TOC state
+                        # If we hit a TOC header, we enter TOC mode
+                        # If we hit any other REAL chapter header, we exit TOC mode
+                        if is_toc_header:
+                            in_toc = True
+                        else:
+                            in_toc = False
+                    
+                else:
+                    # Not a chapter header, append to current content
+                    # This handles subsections (e.g., # 1.1) by treating them as normal text
+                    if current_chapter:
+                        current_content.append(line)
+                    else:
+                        # Content before the first chapter (e.g., title, author)
+                        if line_stripped:
+                            if not chapters and not current_chapter:
+                                # Create a default first chapter for front matter
+                                current_chapter = {
+                                    'title': '前言/说明',
+                                    'content': '',
+                                    'level': 1,
+                                    'order': chapter_order,
+                                    'chapter_num': None,
+                                    'token_count': 0
+                                }
+                                chapter_order += 1
+                            current_content.append(line)
+            
+            # Save the last chapter
+            if current_chapter:
+                current_chapter['content'] = '\n'.join(current_content).strip()
+                current_chapter['token_count'] = self.count_tokens(current_chapter['content'])
+                chapters.append(current_chapter)
+                
+            print(f"Parsed {len(chapters)} chapters using regex segmentation")
+            
         except Exception as e:
-            print(f"Error parsing chapters from MD: {e}")
+            print(f"Error parsing chapters by regex: {e}")
             import traceback
             traceback.print_exc()
-        
+            
         return chapters
     
     def _parse_structured_chapters(self, chapters_data: List) -> List[Dict]:

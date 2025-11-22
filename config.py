@@ -40,28 +40,53 @@ KIMI_API_KEY = os.getenv('KIMI_API_KEY', '')
 
 # LLM Model configurations
 LLM_MODELS = {
-    'gemini': {
-        'name': 'Gemini Pro',
-        'model_id': 'gemini-pro',
-        'max_tokens': 30720,  # ~32k context window
+    # Gemini Models
+    'gemini-pro-2.5': {
+        'provider': 'gemini',
+        'name': 'Gemini Pro 2.5',
+        'model_id': 'gemini-2.5-pro',
+        'max_tokens': 1000000, # 1M context window
         'temperature': 0.7,
     },
-    'chatgpt': {
-        'name': 'GPT-4',
-        'model_id': 'gpt-4-turbo-preview',
-        'max_tokens': 128000,  # 128k context window
+    'gemini-pro-3.0': {
+        'provider': 'gemini',
+        'name': 'Gemini Pro 3.0',
+        'model_id': 'gemini-3.0-pro',
+        'max_tokens': 2000000, # 2M context window
         'temperature': 0.7,
     },
-    'deepseek': {
-        'name': 'DeepSeek Chat',
+    
+    # OpenAI Models
+    'gpt-5.1': {
+        'provider': 'chatgpt',
+        'name': 'GPT-5.1',
+        'model_id': 'gpt-5.1-preview',
+        'max_tokens': 400000, # 400k context window
+        'temperature': 0.7,
+    },
+    'gpt-4o': {
+        'provider': 'chatgpt',
+        'name': 'GPT-4o',
+        'model_id': 'gpt-4o',
+        'max_tokens': 128000, # 128k context window
+        'temperature': 0.7,
+    },
+    
+    # DeepSeek Models
+    'deepseek-v3': {
+        'provider': 'deepseek',
+        'name': 'DeepSeek V3 Chat',
         'model_id': 'deepseek-chat',
-        'max_tokens': 32768,  # 32k context window
+        'max_tokens': 64000, # 64k context window (conservative estimate for chat)
         'temperature': 0.7,
     },
-    'kimi': {
-        'name': 'Kimi',
-        'model_id': 'moonshot-v1-32k',
-        'max_tokens': 32768,
+    
+    # Kimi Models
+    'kimi-k2': {
+        'provider': 'kimi',
+        'name': 'Kimi K2',
+        'model_id': 'moonshot-v1-128k', # Using stable alias, assuming K2 maps to this or newer
+        'max_tokens': 256000, # 256k context window
         'temperature': 0.7,
     }
 }
@@ -90,14 +115,17 @@ def get_available_models():
     Returns a list of available LLM models based on configured API keys
     """
     available = []
-    if GEMINI_API_KEY:
-        available.append('gemini')
-    if OPENAI_API_KEY:
-        available.append('chatgpt')
-    if DEEPSEEK_API_KEY:
-        available.append('deepseek')
-    if KIMI_API_KEY:
-        available.append('kimi')
+    for model_key, model_config in LLM_MODELS.items():
+        provider = model_config.get('provider')
+        if provider == 'gemini' and GEMINI_API_KEY:
+            available.append(model_key)
+        elif provider == 'chatgpt' and OPENAI_API_KEY:
+            available.append(model_key)
+        elif provider == 'deepseek' and DEEPSEEK_API_KEY:
+            available.append(model_key)
+        elif provider == 'kimi' and KIMI_API_KEY:
+            available.append(model_key)
+            
     return available
 
 def validate_config():

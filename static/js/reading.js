@@ -16,6 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBookInfo();
     loadChapters();
     setupEventListeners();
+
+    // Add listener for model change
+    document.getElementById('modelSelect').addEventListener('change', (e) => {
+        currentModel = e.target.value;
+        updateContextUsage();
+    });
 });
 
 async function loadAvailableModels() {
@@ -25,7 +31,9 @@ async function loadAvailableModels() {
 
         const modelSelect = document.getElementById('modelSelect');
         modelSelect.innerHTML = availableModels.map(model => `
-            <option value="${model.id}">${model.name}</option>
+            <option value="${model.id}" data-max-tokens="${model.max_tokens}">
+                ${model.name} (${formatTokenCount(model.max_tokens)} ctx)
+            </option>
         `).join('');
 
         if (availableModels.length > 0) {
@@ -34,8 +42,69 @@ async function loadAvailableModels() {
             currentModel = deepseek ? deepseek.id : availableModels[0].id;
             modelSelect.value = currentModel;
         }
+
+        // Initial update
+        updateContextUsage();
     } catch (error) {
         console.error('Failed to load models:', error);
+    }
+}
+
+function formatTokenCount(count) {
+    if (count >= 1000000) {
+        return (count / 1000000).toFixed(1) + 'M';
+    } else if (count >= 1000) {
+        return (count / 1000).toFixed(0) + 'k';
+    }
+    return count;
+}
+
+function updateContextUsage() {
+    const modelSelect = document.getElementById('modelSelect');
+    const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+    if (!selectedOption) return;
+
+    const maxTokens = parseInt(selectedOption.dataset.maxTokens) || 0;
+
+    // Calculate total tokens of selected chapters
+    let totalTokens = 0;
+    const checkboxes = document.querySelectorAll('.chapter-checkbox:checked');
+
+    if (checkboxes.length === 0) {
+        // If no chapters selected, check if a single chapter is loaded/active
+        // For now, let's just use selected chapters for batch context
+        // Or if we are in single chapter view?
+        // The prompt implies "selected chapters" for generation.
+    }
+
+    checkboxes.forEach(cb => {
+        const chapterItem = cb.closest('.chapter-item');
+        const tokenText = chapterItem.querySelector('.token-count-small').textContent;
+        const tokens = parseInt(tokenText.replace(/[^0-9]/g, '')) || 0;
+        totalTokens += tokens;
+    });
+
+    const usageDiv = document.getElementById('contextUsage');
+    const usageText = usageDiv.querySelector('.usage-text');
+    const usageFill = usageDiv.querySelector('.usage-fill');
+
+    if (totalTokens > 0) {
+        usageDiv.style.display = 'block';
+        const percentage = Math.min((totalTokens / maxTokens) * 100, 100);
+
+        usageText.textContent = `Context: ${formatTokenCount(totalTokens)} / ${formatTokenCount(maxTokens)}`;
+        usageFill.style.width = `${percentage}%`;
+
+        if (totalTokens > maxTokens) {
+            usageFill.style.backgroundColor = '#ff4444'; // Red
+            usageText.innerHTML += ' <span style="color: #ff4444;">(Exceeds Limit!)</span>';
+        } else if (percentage > 80) {
+            usageFill.style.backgroundColor = '#ffbb33'; // Orange
+        } else {
+            usageFill.style.backgroundColor = '#00C851'; // Green
+        }
+    } else {
+        usageDiv.style.display = 'none';
     }
 }
 
@@ -92,6 +161,7 @@ async function loadChapters() {
                     selectedChapters.delete(chapterId);
                 }
                 updateSelectionUI();
+                updateContextUsage(); // Update usage when selection changes
             });
         });
 
