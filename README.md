@@ -260,7 +260,7 @@ Prompt模板存储在数据库 `llm_prompts` 表中,可以通过界面或直接�
 
 ## 许可证
 
-BSL License
+AGPL 
 
 ## 支持
 
