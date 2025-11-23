@@ -53,8 +53,8 @@ function showFileInfo() {
     const uploadBtn = document.getElementById('uploadBtn');
 
     uploadArea.querySelector('.upload-prompt').innerHTML = `
-        <p style="font-weight: 500;">已选择: ${selectedFile.name}</p>
-        <p class="file-size-hint">大小: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+        <p style="font-weight: 500;">${t('已选择')}: ${selectedFile.name}</p>
+        <p class="file-size-hint">${t('大小')}: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
     `;
 
     uploadBtn.style.display = 'block';
@@ -95,8 +95,8 @@ async function uploadFile() {
                     <polyline points="17 8 12 3 7 8"></polyline>
                     <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
-                <p>点击或拖拽PDF文件到此处上传</p>
-                <p class="file-size-hint">最大文件大小: 200 MB</p>
+                <p>${t('点击或拖拽文件到此处上传')}</p>
+                <p class="file-size-hint">${t('支持格式: PDF, Word, Markdown, TXT, EPUB (最大 500MB)')}</p>
             `;
             uploadBtn.style.display = 'none';
             uploadProgress.style.display = 'none';
@@ -104,10 +104,10 @@ async function uploadFile() {
             // Reload books list
             loadBooks();
         } else {
-            alert(`上传失败: ${result.error}`);
+            alert(`${t('upload_failed')}: ${result.error}`);
         }
     } catch (error) {
-        alert(`上传失败: ${error.message}`);
+        alert(`${t('upload_failed')}: ${error.message}`);
     } finally {
         uploadBtn.disabled = false;
     }
@@ -127,11 +127,11 @@ async function startParsing(bookId) {
             // Track this parsing task
             parsingBooks.set(bookId, result.task_id);
         } else {
-            alert(`解析启动失败: ${result.error}`);
+            alert(`${t('parsing_started')} ${t('error')}: ${result.error}`);
         }
     } catch (error) {
         console.error('Failed to start parsing:', error);
-        alert(`解析启动失败: ${error.message}`);
+        alert(`${t('parsing_started')} ${t('error')}: ${error.message}`);
     }
 }
 
@@ -143,7 +143,7 @@ async function loadBooks() {
         const booksList = document.getElementById('booksList');
 
         if (books.length === 0) {
-            booksList.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">暂无教材,请先上传</p>';
+            booksList.innerHTML = `<p style="text-align: center; color: var(--text-secondary);">${t('暂无教材,请先上传')}</p>`;
             return;
         }
 
@@ -153,23 +153,23 @@ async function loadBooks() {
 
             return `
                 <div class="book-card ${book.status === 'parsing' ? 'book-parsing' : ''}" onclick="handleBookClick(${book.id}, '${book.status}')">
-                    <h3>${book.title || '未命名'}</h3>
-                    ${book.author ? `<p class="book-meta">作者: ${book.author}</p>` : ''}
-                    ${book.publisher ? `<p class="book-meta">出版社: ${book.publisher}</p>` : ''}
+                    <h3>${book.title || t('未命名')}</h3>
+                    ${book.author ? `<p class="book-meta">${t('作者')}: ${book.author}</p>` : ''}
+                    ${book.publisher ? `<p class="book-meta">${t('出版社')}: ${book.publisher}</p>` : ''}
                     
                     ${book.status === 'parsing' ? `
                         <div class="parsing-progress" id="progress-${book.id}">
                             <div class="progress-bar-small">
                                 <div class="progress-fill-small" style="width: 0%"></div>
                             </div>
-                            <p class="progress-text-small">解析中... 0%</p>
+                            <p class="progress-text-small">${t('generating')} 0%</p>
                         </div>
                     ` : ''}
                     
                     <div class="book-footer">
                         <span class="book-status status-${book.status}">${getStatusText(book.status)}</span>
                         <div class="book-actions">
-                            <button class="btn-icon" onclick="event.stopPropagation(); window.location.href='/content_manager/${book.id}'" title="内容管理">
+                            <button class="btn-icon" onclick="event.stopPropagation(); window.location.href='/content_manager/${book.id}'" title="${t('内容管理')}">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                     <polyline points="14 2 14 8 20 8"></polyline>
@@ -178,13 +178,13 @@ async function loadBooks() {
                                     <polyline points="10 9 9 9 8 9"></polyline>
                                 </svg>
                             </button>
-                            <button class="btn-icon" onclick="event.stopPropagation(); editBook(${book.id})" title="编辑">
+                            <button class="btn-icon" onclick="event.stopPropagation(); editBook(${book.id})" title="${t('编辑')}">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
                             </button>
-                            <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteBook(${book.id}, '${(book.title || '未命名').replace(/'/g, "\\'")}')" title="删除">
+                            <button class="btn-icon btn-danger" onclick="event.stopPropagation(); deleteBook(${book.id}, '${(book.title || t('未命名')).replace(/'/g, "\\'")}')" title="${t('删除')}">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="3 6 5 6 21 6"></polyline>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -213,10 +213,10 @@ async function loadBooks() {
 
 function getStatusText(status) {
     const statusMap = {
-        'uploaded': '已上传',
-        'parsing': '解析中...',
-        'parsed': '已解析',
-        'error': '错误'
+        'uploaded': t('已上传'),
+        'parsing': t('generating'),
+        'parsed': t('已解析'),
+        'error': t('error')
     };
     return statusMap[status] || status;
 }
@@ -226,12 +226,12 @@ function handleBookClick(bookId, status) {
         // Open reading workbench
         window.location.href = `/reading/${bookId}`;
     } else if (status === 'parsing') {
-        alert('文档正在解析中,请稍候...');
+        alert(t('文档正在解析中,请稍候...'));
     } else if (status === 'uploaded') {
         // Show metadata confirmation
         showMetadataModal(bookId);
     } else if (status === 'error') {
-        alert('文档解析失败,请重新上传');
+        alert(t('文档解析失败,请重新上传'));
     }
 }
 
@@ -251,13 +251,13 @@ async function editBook(bookId) {
         document.getElementById('metadataModal').style.display = 'flex';
     } catch (error) {
         console.error('Failed to load book:', error);
-        alert('加载教材信息失败');
+        alert(t('加载教材信息失败'));
     }
 }
 
 // Delete book function
 async function deleteBook(bookId, bookTitle) {
-    if (!confirm(`确定要删除《${bookTitle}》吗？\n\n此操作将删除教材及其所有相关数据(章节、生成内容等),且不可恢复!`)) {
+    if (!confirm(`${t('确定要删除')} 《${bookTitle}》 ${t('吗？')}\n\n${t('此操作将删除教材及其所有相关数据(章节、生成内容等),且不可恢复!')}`)) {
         return;
     }
 
@@ -269,15 +269,15 @@ async function deleteBook(bookId, bookTitle) {
         const result = await response.json();
 
         if (response.ok) {
-            alert('删除成功');
+            alert(t('delete_success'));
             parsingBooks.delete(bookId); // Remove from tracking
             loadBooks();
         } else {
-            alert(`删除失败: ${result.error}`);
+            alert(`${t('delete_success')} ${t('error')}: ${result.error}`);
         }
     } catch (error) {
         console.error('Failed to delete book:', error);
-        alert('删除失败');
+        alert(t('delete_success') + ' ' + t('error'));
     }
 }
 
@@ -326,13 +326,13 @@ document.getElementById('metadataForm').addEventListener('submit', async (e) => 
         if (response.ok) {
             closeMetadataModal();
             loadBooks();
-            alert('保存成功');
+            alert(t('save_success'));
         } else {
-            alert('保存元数据失败');
+            alert(t('保存元数据失败'));
         }
     } catch (error) {
         console.error('Failed to save metadata:', error);
-        alert('保存元数据失败');
+        alert(t('保存元数据失败'));
     }
 });
 
@@ -363,12 +363,13 @@ async function checkParsingStatus() {
                 }
                 if (progressText) {
                     if (status === 'completed') {
-                        progressText.textContent = '解析完成 100%';
+                        progressText.textContent = `${t('generating')} 100%`;
                     } else if (status === 'failed' || status === 'error') {
-                        progressText.textContent = '解析失败';
+                        progressText.textContent = statusInfo.message || t('error');
+                        progressText.title = statusInfo.message || '';
                         progressText.style.color = 'var(--danger-color)';
                     } else {
-                        progressText.textContent = `解析中... ${progress}%`;
+                        progressText.textContent = `${t('generating')} ${progress}%`;
                     }
                 }
             }

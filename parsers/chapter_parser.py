@@ -187,10 +187,11 @@ class ChapterParser:
             
             chapter_patterns = [
                 r"^#+\s*第[一二三四五六七八九十零〇\d]+[章篇部分]",  # 第X章
-                r"^#+\s*Chapter\s+\d+",  # Chapter X
+                r"^#+\s*Chapter\s+([\d]+|[IVXivx]+|[A-Za-z]+)",  # Chapter 1, Chapter I, Chapter One
+                r"^#+\s*(Part|Section)\s+([\d]+|[IVXivx]+|[A-Za-z]+)", # Part 1, Section I
                 r"^#+\s*\d+\s+[^\.\d]",  # 1 Title (but not 1.1)
-                # Common Front Matter & Back Matter keywords
-                r"^#+\s*(序言|前言|目录|参考文献|附录|致谢|后记|结语|摘要|索引|术语表|版权|作者|推荐语|Introduction|Preface|Contents|References|Appendix|Acknowledgement|Conclusion|Abstract|Index|Glossary|Copyright|About|Praise)", 
+                # Common Front Matter & Back Matter keywords (Expanded)
+                r"^#+\s*(序言|前言|目录|参考文献|附录|致谢|后记|结语|摘要|索引|术语表|版权|作者|推荐语|Introduction|Preface|Contents|Table of Contents|References|Bibliography|Appendix|Acknowledgement|Acknowledgments|Conclusion|Abstract|Index|Glossary|Copyright|About|Praise|Foreword|Prologue|Epilogue)", 
             ]
             
             # Compile regex for performance

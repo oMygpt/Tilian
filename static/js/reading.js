@@ -92,7 +92,11 @@ function updateContextUsage() {
         usageDiv.style.display = 'block';
         const percentage = Math.min((totalTokens / maxTokens) * 100, 100);
 
-        usageText.textContent = `Context: ${formatTokenCount(totalTokens)} / ${formatTokenCount(maxTokens)}`;
+        usageText.textContent = t('context_usage_safe', {
+            percent: percentage.toFixed(1),
+            tokens: formatTokenCount(totalTokens),
+            limit: formatTokenCount(maxTokens)
+        });
         usageFill.style.width = `${percentage}%`;
 
         if (totalTokens > maxTokens) {
@@ -113,7 +117,7 @@ async function loadBookInfo() {
         const response = await fetch(`/api/books/${currentBookId}`);
         const book = await response.json();
 
-        document.getElementById('bookTitle').textContent = book.title || 'Untitled';
+        document.getElementById('bookTitle').textContent = book.title || t('未命名');
     } catch (error) {
         console.error('Failed to load book info:', error);
     }
@@ -191,7 +195,7 @@ async function loadChapter(chapterId) {
 
         // Update token count display
         const tokenCount = chapter.token_count || 0;
-        document.getElementById('chapterTokens').textContent = `${tokenCount.toLocaleString()} tokens`;
+        document.getElementById('chapterTokens').textContent = t('chapter_tokens', { tokens: tokenCount.toLocaleString() });
 
         // Show/hide split button based on token count and model limits
         updateSplitButtonVisibility(chapter);
@@ -235,12 +239,12 @@ async function loadGeneratedContent(chapterId) {
 }
 
 function createContentCard(item) {
-    const typeText = item.content_type === 'qa' ? '问答' : '习题';
+    const typeText = item.content_type === 'qa' ? t('问答对') : t('习题');
     const statusClass = `status-${item.status}`;
     const statusText = {
-        'pending': '待生成',
-        'generated': '已生成',
-        'verified': '已校验'
+        'pending': t('待生成'),
+        'generated': t('已生成'),
+        'verified': t('已校验')
     }[item.status];
 
     return `
@@ -253,17 +257,17 @@ function createContentCard(item) {
                 ${item.question}
             </div>
             <div class="content-answer editableContent" contenteditable="true" data-field="answer">
-                <strong>答案:</strong> ${item.answer}
+                <strong>${t('答案')}:</strong> ${item.answer}
             </div>
             ${item.explanation ? `
                 <div class="content-answer editableContent" contenteditable="true" data-field="explanation">
-                    <strong>解析:</strong> ${item.explanation}
+                    <strong>${t('解析')}:</strong> ${item.explanation}
                 </div>
             ` : ''}
             <div class="content-actions">
-                <button class="btn btn-small btn-primary" onclick="saveContent(${item.id})">保存</button>
+                <button class="btn btn-small btn-primary" onclick="saveContent(${item.id})">${t('保存')}</button>
                 ${item.status !== 'verified' ? `
-                    <button class="btn btn-small btn-success" onclick="verifyContent(${item.id})">标记为已确认</button>
+                    <button class="btn btn-small btn-success" onclick="verifyContent(${item.id})">${t('标记为已确认')}</button>
                 ` : ''}
             </div>
         </div>
@@ -286,7 +290,7 @@ async function saveContent(contentId) {
 
     card.querySelectorAll('.editableContent').forEach(el => {
         const field = el.dataset.field;
-        updates[field] = el.textContent.replace(/^(答案:|解析:)\s*/, '').trim();
+        updates[field] = el.textContent.replace(new RegExp(`^(${t('答案')}:|${t('解析')}:)\\s*`), '').trim();
     });
 
     try {
@@ -396,18 +400,18 @@ function updateSelectionUI() {
     const generateExerciseBtn = document.getElementById('generateExerciseBtn');
 
     if (count > 0) {
-        countSpan.textContent = `已选 ${count} 项`;
+        countSpan.textContent = t('已选 {count} 项', { count: count });
         countSpan.style.display = 'inline';
 
-        generateQABtn.innerHTML = `<span class="icon">💬</span> 批量生成问答 (${count})`;
-        generateExerciseBtn.innerHTML = `<span class="icon">✏️</span> 批量生成习题 (${count})`;
+        generateQABtn.innerHTML = `<span class="icon">💬</span> ${t('批量生成问答')} (${count})`;
+        generateExerciseBtn.innerHTML = `<span class="icon">✏️</span> ${t('批量生成习题')} (${count})`;
 
         // Load selected chapters for reading
         loadSelectedChapters();
     } else {
         countSpan.style.display = 'none';
-        generateQABtn.innerHTML = `<span class="icon">❓</span> 生成问答`;
-        generateExerciseBtn.innerHTML = `<span class="icon">📝</span> 生成习题`;
+        generateQABtn.innerHTML = `<span class="icon">❓</span> ${t('生成问答')}`;
+        generateExerciseBtn.innerHTML = `<span class="icon">📝</span> ${t('生成习题')}`;
 
         // If we have a current chapter but no selection, ensure it's loaded
         if (currentChapterId && !selectedChapters.has(currentChapterId)) {
@@ -435,8 +439,8 @@ async function loadSelectedChapters() {
         const totalTokens = chapters.reduce((sum, ch) => sum + (ch.token_count || 0), 0);
 
         // Update Header
-        document.getElementById('chapterTitle').textContent = `已选 ${chapters.length} 个章节`;
-        document.getElementById('chapterTokens').textContent = `${totalTokens.toLocaleString()} tokens`;
+        document.getElementById('chapterTitle').textContent = t('已选 {count} 个章节', { count: chapters.length });
+        document.getElementById('chapterTokens').textContent = t('chapter_tokens', { tokens: totalTokens.toLocaleString() });
 
         // Hide single chapter specific controls
         document.getElementById('splitChapterBtn').style.display = 'none';
@@ -480,7 +484,7 @@ async function generateContent(type) {
     }
 
     if (!currentChapterId) {
-        alert('请先选择一个章节');
+        alert(t('select_chapter'));
         return;
     }
 
@@ -498,12 +502,12 @@ async function generateContent(type) {
 
     progressContainer.style.display = 'block';
     progressFill.style.width = '0%';
-    progressText.textContent = '准备中...';
+    progressText.textContent = t('准备中...');
 
     btn.disabled = true;
-    btn.textContent = '生成中...';
+    btn.textContent = t('generating');
     statusDiv.className = 'status-message info';
-    statusDiv.textContent = '正在准备生成...';
+    statusDiv.textContent = t('正在准备生成...');
 
     // Use SSE for real-time progress
     const endpoint = type === 'qa' ? '/api/generate/qa/stream' : '/api/generate/exercise/stream';
@@ -551,7 +555,7 @@ async function generateContent(type) {
                         }, 3000);
                     } else if (data.type === 'error') {
                         statusDiv.className = 'status-message error';
-                        statusDiv.textContent = `生成失败: ${data.message}`;
+                        statusDiv.textContent = `${t('生成失败')}: ${data.message}`;
                         progressContainer.style.display = 'none';
                     }
                 }
@@ -559,7 +563,7 @@ async function generateContent(type) {
         }
     } catch (error) {
         statusDiv.className = 'status-message error';
-        statusDiv.textContent = `生成失败: ${error.message}`;
+        statusDiv.textContent = `${t('生成失败')}: ${error.message}`;
         progressContainer.style.display = 'none';
     } finally {
         btn.disabled = false;
@@ -580,7 +584,7 @@ async function batchGenerate(type) {
     const btn = type === 'qa' ? document.getElementById('generateQaBtn') : document.getElementById('generateExerciseBtn');
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.textContent = '准备批量生成...';
+    btn.textContent = t('准备批量生成...');
 
     const progressFill = document.getElementById('batchProgressFill');
     const progressText = document.getElementById('batchProgressText');
@@ -597,24 +601,24 @@ async function batchGenerate(type) {
             const chapter = await response.json();
             chapterDetails[chapterId] = chapter.title;
         } catch (error) {
-            chapterDetails[chapterId] = `章节 ${chapterId}`;
+            chapterDetails[chapterId] = `${t('章节')} ${chapterId}`;
         }
     }
 
     for (let i = 0; i < total; i++) {
         const chapterId = chapters[i];
-        const chapterTitle = chapterDetails[chapterId] || `章节 ${chapterId}`;
-        const typeText = type === 'qa' ? '问答对' : '习题';
+        const chapterTitle = chapterDetails[chapterId] || `${t('章节')} ${chapterId}`;
+        const typeText = type === 'qa' ? t('问答对') : t('习题');
 
         // Update progress - starting
-        const startMsg = `第 ${i + 1}/${total} 个${typeText} - ${chapterTitle} - 正在准备...`;
+        const startMsg = `${t('第')} ${i + 1}/${total} ${t('个')}${typeText} - ${chapterTitle} - ${t('正在准备...')}`;
         progressText.textContent = `${i + 1}/${total}`;
         document.getElementById('batchProgressDetail').textContent = startMsg;
         progressFill.style.width = `${((i) / total) * 100}%`;
 
         try {
             // Show calling LLM status
-            const llmMsg = `第 ${i + 1}/${total} 个${typeText} - ${chapterTitle} - 正在调用大模型...`;
+            const llmMsg = `${t('第')} ${i + 1}/${total} ${t('个')}${typeText} - ${chapterTitle} - ${t('正在调用大模型...')}`;
             document.getElementById('batchProgressDetail').textContent = llmMsg;
 
             const response = await fetch(`/api/generate/${type}`, {
@@ -629,19 +633,19 @@ async function batchGenerate(type) {
 
             if (response.ok) {
                 const result = await response.json();
-                const completeMsg = `第 ${i + 1}/${total} 个${typeText} - ${chapterTitle} - ✅ 已完成 (生成${result.generated_count}条)`;
+                const completeMsg = `${t('第')} ${i + 1}/${total} ${t('个')}${typeText} - ${chapterTitle} - ✅ ${t('已完成')} (${t('生成')}${result.generated_count}${t('条')})`;
                 document.getElementById('batchProgressDetail').textContent = completeMsg;
                 progressText.textContent = `${i + 1}/${total}`;
                 successCount++;
             } else {
-                const failMsg = `第 ${i + 1}/${total} 个${typeText} - ${chapterTitle} - ❌ 失败`;
+                const failMsg = `${t('第')} ${i + 1}/${total} ${t('个')}${typeText} - ${chapterTitle} - ❌ ${t('失败')}`;
                 document.getElementById('batchProgressDetail').textContent = failMsg;
                 progressText.textContent = `${i + 1}/${total}`;
                 failCount++;
                 console.error(`Failed to generate for chapter ${chapterId}`);
             }
         } catch (error) {
-            const errorMsg = `第 ${i + 1}/${total} 个${typeText} - ${chapterTitle} - ❌ 失败`;
+            const errorMsg = `${t('第')} ${i + 1}/${total} ${t('个')}${typeText} - ${chapterTitle} - ❌ ${t('失败')}`;
             document.getElementById('batchProgressDetail').textContent = errorMsg;
             progressText.textContent = `${i + 1}/${total}`;
             failCount++;
@@ -660,7 +664,7 @@ async function batchGenerate(type) {
     btn.disabled = false;
     btn.innerHTML = originalText;
 
-    const finalMsg = `✅ 批量生成完成！成功: ${successCount}, 失败: ${failCount}`;
+    const finalMsg = `✅ ${t('batch_complete')} ${t('success')}: ${successCount}, ${t('error')}: ${failCount}`;
     document.getElementById('batchProgressDetail').textContent = finalMsg;
     progressText.textContent = `${total}/${total}`;
     setTimeout(() => {
@@ -672,7 +676,7 @@ async function batchGenerate(type) {
         loadProgress(currentChapterId);
     }
 
-    alert(`批量生成完成\n成功: ${successCount}\n失败: ${failCount}`);
+    alert(`${t('batch_complete')}\n${t('success')}: ${successCount}\n${t('error')}: ${failCount}`);
 
 }
 
@@ -724,7 +728,7 @@ async function savePrompt() {
     const content = document.getElementById('promptEditor').value;
 
     if (!content.trim()) {
-        alert('Prompt内容不能为空');
+        alert(t('Prompt内容不能为空'));
         return;
     }
 
@@ -739,10 +743,10 @@ async function savePrompt() {
 
             const result = await response.json();
             if (result.success) {
-                alert('Prompt模板已保存');
+                alert(t('Prompt模板已保存'));
                 closePromptModal();
             } else {
-                alert('保存失败: ' + (result.error || '未知错误'));
+                alert(`${t('保存失败')}: ` + (result.error || t('未知错误')));
             }
         } else {
             // Create new prompt
@@ -758,14 +762,14 @@ async function savePrompt() {
 
             const result = await response.json();
             if (result.success) {
-                alert('Prompt模板已创建');
+                alert(t('Prompt模板已创建'));
                 closePromptModal();
             } else {
-                alert('创建失败: ' + (result.error || '未知错误'));
+                alert(`${t('创建失败')}: ` + (result.error || t('未知错误')));
             }
         }
     } catch (error) {
-        alert('保存失败: ' + error.message);
+        alert(`${t('保存失败')}: ` + error.message);
     }
 }
 
@@ -773,7 +777,7 @@ async function exportBook() {
     try {
         window.location.href = `/api/export/book/${currentBookId}?format=excel`;
     } catch (error) {
-        alert(`导出失败: ${error.message}`);
+        alert(`${t('导出失败')}: ${error.message}`);
     }
 }
 

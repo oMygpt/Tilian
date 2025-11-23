@@ -29,10 +29,10 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="header-top">
-                    <h3 id="bookTitle">Loading...</h3>
+                    <h3 id="bookTitle">{{ _('Loading...') }}</h3>
                     <div class="header-links">
-                        <a href="/" class="btn-back" title="返回首页">← 返回</a>
-                        <a href="/content_manager/{{ book_id }}" class="btn-icon-link" title="内容管理">
+                        <a href="/" class="btn-back" title="{{ _('返回首页') }}">← {{ _('返回') }}</a>
+                        <a href="/content_manager/{{ book_id }}" class="btn-icon-link" title="{{ _('内容管理') }}">
                             <span class="icon">📋</span>
                         </a>
                     </div>
@@ -40,9 +40,9 @@
                 <div class="header-controls">
                     <label class="checkbox-label">
                         <input type="checkbox" id="selectAllChapters">
-                        全选
+                        {{ _('全选') }}
                     </label>
-                    <span id="selectedCount" class="selected-count" style="display: none;">已选 0 项</span>
+                    <span id="selectedCount" class="selected-count" style="display: none;">{{ _('已选 0 项') }}</span>
                 </div>
             </div>
             <div class="chapter-tree" id="chapterTree">
@@ -55,12 +55,12 @@
             <!-- Chapter content -->
             <div class="chapter-display" id="chapterDisplay">
                 <div class="chapter-header">
-                    <h2 id="chapterTitle">Select a chapter</h2>
+                    <h2 id="chapterTitle">{{ _('Select a chapter') }}</h2>
                     <div class="chapter-meta">
                         <span id="chapterTokens" class="token-count">0 tokens</span>
                         <button id="splitChapterBtn" class="btn btn-warning btn-small" style="display: none;">
                             <span class="icon">✂️</span>
-                            切分章节
+                            {{ _('切分章节') }}
                         </button>
                     </div>
                 </div>
@@ -73,14 +73,14 @@
         <!-- Right control panel -->
         <aside class="control-panel">
             <div class="panel-header">
-                <h3>生成控制台</h3>
+                <h3>{{ _('生成控制台') }}</h3>
             </div>
 
             <!-- Combined Control Card -->
             <div class="control-card">
                 <div class="control-section">
                     <div class="form-group">
-                        <label>选择模型</label>
+                        <label>{{ _('选择模型') }}</label>
                         <select id="modelSelect" class="full-width">
                             <!-- Options loaded via JS -->
                         </select>
@@ -95,14 +95,14 @@
                     <div class="divider"></div>
 
                     <div class="control-section">
-                        <label class="section-label">生成设置</label>
+                        <label class="section-label">{{ _('生成设置') }}</label>
                         <div class="control-row">
                             <div class="count-input-wrapper">
-                                <span class="input-label">数量</span>
+                                <span class="input-label">{{ _('数量') }}</span>
                                 <input type="number" id="generateCount" value="8" min="1" max="20" class="count-input">
                             </div>
-                            <button id="viewPrompt" class="btn-icon-text" title="编辑 Prompt">
-                                <span class="icon">⚙️</span> 模板
+                            <button id="viewPrompt" class="btn-icon-text" title="{{ _('编辑 Prompt') }}">
+                                <span class="icon">⚙️</span> {{ _('模板') }}
                             </button>
                         </div>
                     </div>
@@ -110,10 +110,10 @@
                     <div class="control-section">
                         <div class="button-grid">
                             <button id="generateQaBtn" class="btn primary large-btn">
-                                <span class="icon">❓</span> 生成问答
+                                <span class="icon">❓</span> {{ _('生成问答') }}
                             </button>
                             <button id="generateExerciseBtn" class="btn primary large-btn">
-                                <span class="icon">📝</span> 生成习题
+                                <span class="icon">📝</span> {{ _('生成习题') }}
                             </button>
                         </div>
                     </div>
@@ -125,10 +125,10 @@
                         <div class="batch-progress-container">
                             <div class="batch-progress-header">
                                 <span class="progress-icon">⚡</span>
-                                <span>批量生成进行中...</span>
+                                <span>{{ _('批量生成进行中...') }}</span>
                             </div>
                             <div class="batch-progress-detail" id="batchProgressDetail">
-                                准备开始...
+                                {{ _('准备开始...') }}
                             </div>
                             <div class="progress-bar-container">
                                 <div class="progress-bar">
@@ -143,7 +143,7 @@
 
                     <!-- Verification Progress (Moved here) -->
                     <div class="control-section" id="verificationProgressSection" style="display: none;">
-                        <label class="section-label">校验进度</label>
+                        <label class="section-label">{{ _('校验进度') }}</label>
                         <div class="progress-bar-container">
                             <div class="progress-bar">
                                 <div class="progress-fill" id="progressFill" style="width: 0%"></div>
@@ -156,7 +156,7 @@
 
                 <div class="control-card">
                     <a href="/content_manager/{{ book_id }}" class="btn secondary full-width btn-content-manager">
-                        <span class="icon">📊</span> 内容管理
+                        <span class="icon">📊</span> {{ _('内容管理') }}
                     </a>
                 </div>
         </aside>
@@ -165,18 +165,18 @@
     <!-- Split Chapter Confirmation Modal -->
     <div id="splitModal" class="modal" style="display: none;">
         <div class="modal-content">
-            <h3>切分章节确认</h3>
-            <p>当前章节包含 <strong id="splitTokenCount">0</strong> tokens，将根据所选模型的token限制进行切分。</p>
+            <h3>{{ _('切分章节确认') }}</h3>
+            <p>{{ _('当前章节包含') }} <strong id="splitTokenCount">0</strong> tokens，{{ _('将根据所选模型的token限制进行切分。') }}</p>
             <div class="form-group">
-                <label for="splitModelSelect">选择目标模型</label>
+                <label for="splitModelSelect">{{ _('选择目标模型') }}</label>
                 <select id="splitModelSelect" class="model-select">
                     <!-- Models will be loaded dynamically -->
                 </select>
             </div>
-            <p class="hint">切分后原章节将被替换为多个较小的子章节。</p>
+            <p class="hint">{{ _('切分后原章节将被替换为多个较小的子章节。') }}</p>
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeSplitModal()">取消</button>
-                <button type="button" class="btn btn-warning" onclick="confirmSplit()">确认切分</button>
+                <button type="button" class="btn btn-secondary" onclick="closeSplitModal()">{{ _('取消') }}</button>
+                <button type="button" class="btn btn-warning" onclick="confirmSplit()">{{ _('确认切分') }}</button>
             </div>
         </div>
     </div>
@@ -184,20 +184,34 @@
     <!-- Prompt Editor Modal -->
     <div id="promptModal" class="modal" style="display: none;">
         <div class="modal-content modal-large">
-            <h3>Prompt 模板编辑</h3>
+            <h3>{{ _('Prompt 模板编辑') }}</h3>
             <div class="prompt-tabs">
-                <button class="tab-btn active" data-type="qa">问答对模板</button>
-                <button class="tab-btn" data-type="exercise">习题模板</button>
+                <button class="tab-btn active" data-type="qa">{{ _('问答对模板') }}</button>
+                <button class="tab-btn" data-type="exercise">{{ _('习题模板') }}</button>
             </div>
             <textarea id="promptEditor" rows="15" class="prompt-editor"></textarea>
-            <p class="hint">模板中可使用占位符: {chapter_title}, {chapter_content}, {count} (生成数量)</p>
+            <p class="hint">{{ _('模板中可使用占位符: {chapter_title}, {chapter_content}, {count} (生成数量)') }}</p>
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="closePromptModal()">取消</button>
-                <button type="button" class="btn btn-primary" onclick="savePrompt()">保存修改</button>
+                <button type="button" class="btn btn-secondary" onclick="closePromptModal()">{{ _('取消') }}</button>
+                <button type="button" class="btn btn-primary" onclick="savePrompt()">{{ _('保存修改') }}</button>
             </div>
         </div>
     </div>
 
+    </div>
+
+    <script>
+        window.translations = {{ js_translations | tojson }};
+        window.t = function (key, params) {
+            let text = window.translations[key] || key;
+            if (params) {
+                for (let k in params) {
+                    text = text.replace('{' + k + '}', params[k]);
+                }
+            }
+            return text;
+        };
+    </script>
     <script src="/static/js/reading.js"></script>
 </body>
 

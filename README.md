@@ -1,6 +1,7 @@
-# 题炼-智能教材语料生成与校验平台
+# 题炼-智能教材考题生成与校验平台 Q-Refinery Platform for Exam Question Generation and Review
+# Refine Text into Knowledge. (书本如矿，百炼成题)
 
-一个基于Flask + Python + SQLite的教材处理和语料生成平台,通过MinerU OCR解析和多模型LLM能力,将PDF教材转化为高质量的问答对和习题集。
+通过多模型的能力,将教材转化为高质量的问答对和习题集。
 
 ## 功能特性
 

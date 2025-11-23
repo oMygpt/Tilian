@@ -25,6 +25,68 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_UPLOAD_SIZE
 
+# Initialize Babel for i18n
+from flask_babel import Babel, gettext as _
+from flask import session, redirect, url_for
+
+def get_locale():
+    # 1. Check if language is explicitly set in session
+    if 'lang' in session:
+        return session['lang']
+    # 2. Check if language is set in cookie (optional, but session is usually enough)
+    # 3. Best match from request headers
+    return request.accept_languages.best_match(['zh', 'en'])
+
+babel = Babel(app, locale_selector=get_locale)
+
+@app.route('/set_language/<lang>')
+def set_language(lang):
+    if lang in ['zh', 'en']:
+        session['lang'] = lang
+    return redirect(request.referrer or url_for('index'))
+
+def get_js_translations():
+    """Return a dictionary of translations for JavaScript"""
+    return {
+        # General
+        'error': _('错误'),
+        'success': _('成功'),
+        'loading': _('加载中...'),
+        'confirm': _('确认'),
+        'cancel': _('取消'),
+        
+        # Upload
+        'upload_failed': _('上传失败'),
+        'upload_success': _('上传成功'),
+        'parsing_started': _('解析任务已开始'),
+        
+        # Reading
+        'select_chapter': _('请选择一个章节'),
+        'chapter_tokens': _('当前章节: {tokens} tokens'),
+        'generate_success': _('生成任务已提交'),
+        'copy_success': _('复制成功'),
+        'save_success': _('保存成功'),
+        'no_content': _('暂无内容'),
+        'generating': _('生成中...'),
+        'verifying': _('校验中...'),
+        'batch_progress': _('已完成 {done}/{total} 个章节'),
+        'batch_complete': _('批量生成完成！'),
+        'context_limit_warning': _('⚠️ 警告: 已选择 {count} 个章节，总计 {tokens} tokens。超过模型限制 ({limit})！'),
+        'context_usage_safe': _('当前使用: {percent}% ({tokens}/{limit})'),
+        
+        # Content Manager
+        'delete_confirm': _('确定要删除这条内容吗？'),
+        'delete_success': _('删除成功'),
+        'verify_success': _('校验状态已更新'),
+        'export_success': _('导出成功'),
+        'select_items': _('请先选择要导出的内容'),
+        'no_items_found': _('未找到匹配的内容'),
+    }
+
+@app.context_processor
+def inject_translations():
+    return dict(js_translations=get_js_translations())
+
 # Initialize database on startup
 with app.app_context():
     try:
@@ -63,11 +125,19 @@ def upload_file():
         file.save(file_path)
         
         # Check file size
-        if not mineru_client.check_file_size(file_path):
+        # Check file size
+        is_pdf = filename.lower().endswith('.pdf')
+        if not is_pdf and not mineru_client.check_file_size(file_path):
             file_size_mb = file_path.stat().st_size / (1024 * 1024)
             return jsonify({
                 'error': f'File too large ({file_size_mb:.2f} MB). Maximum: {config.MINERU_MAX_FILE_SIZE} MB',
                 'requires_split': True
+            }), 400
+        
+        # For PDF, we allow larger files as we'll split them
+        if is_pdf and file_path.stat().st_size > config.MAX_UPLOAD_SIZE:
+             return jsonify({
+                'error': f'File too large. Maximum upload size: {config.MAX_UPLOAD_SIZE / (1024*1024)} MB'
             }), 400
         
         # Create book record
@@ -88,10 +158,11 @@ def upload_file():
 
 
 from parsers.epub_parser import epub_parser
+from parsers.docx_parser import docx_parser
 
 @app.route('/api/parse', methods=['POST'])
 def start_parsing():
-    """Start parsing process (MinerU for PDF, direct for MD/TXT/EPUB)"""
+    """Start parsing process (MinerU for PDF, direct for MD/TXT/EPUB/DOCX)"""
     data = request.json
     book_id = data.get('book_id')
     
@@ -127,43 +198,26 @@ def start_parsing():
                 'task_id': batch_id
             })
             
-        elif suffix in ['.md', '.txt', '.epub']:
-            # MD/TXT/EPUB: Direct parsing (Synchronous)
+        elif suffix in ['.md', '.txt', '.epub', '.docx']:
+            # Direct parsing (Sync)
             import uuid
             task_id = str(uuid.uuid4().hex)
             
             # Create task record (marked as processing initially)
             db.create_parse_task(book_id, task_id)
             
-            # Process directly
+            content_md = ""
+            extracted_metadata = {}
+            
             try:
-                chapters = []
-                
-                # 1. Parse content based on type
-                if suffix == '.md':
-                    chapters = chapter_parser.parse_chapters_from_md(file_path)
-                    # Extract metadata
-                    md_meta = extract_metadata_from_md(file_path)
-                    db.update_book(book_id, **md_meta)
-                    
-                elif suffix == '.epub':
-                    # Parse EPUB
+                if suffix == '.epub':
                     content, metadata = epub_parser.parse(file_path)
-                    
-                    # Update metadata
-                    db.update_book(book_id, 
-                        author=metadata.get('author'),
-                        publisher=metadata.get('publisher'),
-                        publish_date=metadata.get('date'),
-                        language=metadata.get('language')
-                    )
-                    
-                    # Save intermediate MD file
+                    content_md = content
+                    extracted_metadata.update(metadata)
+                    # Save intermediate MD file for consistency if needed later
                     md_path = file_path.with_suffix('.md')
                     with open(md_path, 'w', encoding='utf-8') as f:
                         f.write(content)
-                    
-                    # Parse chapters from the generated Markdown
                     chapters = chapter_parser.parse_chapters_from_md(md_path)
                     
                 else: # .txt
