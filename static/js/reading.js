@@ -511,6 +511,7 @@ async function generateContent(type) {
 
     // Use SSE for real-time progress
     const endpoint = type === 'qa' ? '/api/generate/qa/stream' : '/api/generate/exercise/stream';
+    const mode = document.getElementById('generationMode').value;
 
     try {
         const response = await fetch(endpoint, {
@@ -519,7 +520,8 @@ async function generateContent(type) {
             body: JSON.stringify({
                 chapter_id: currentChapterId,
                 model: currentModel,
-                count: count
+                count: count,
+                mode: mode
             })
         });
 
@@ -627,7 +629,8 @@ async function batchGenerate(type) {
                 body: JSON.stringify({
                     chapter_id: chapterId,
                     model: currentModel,
-                    count: count
+                    count: count,
+                    mode: document.getElementById('generationMode').value
                 })
             });
 

@@ -96,6 +96,14 @@
 
                     <div class="control-section">
                         <label class="section-label">{{ _('生成设置') }}</label>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label class="input-label" style="display: block; margin-bottom: 5px;">{{ _('生成模式')
+                                }}</label>
+                            <select id="generationMode" class="full-width">
+                                <option value="standard">{{ _('标准模式 (快速)') }}</option>
+                                <option value="multi_agent">{{ _('多智能体协作 (高质量)') }}</option>
+                            </select>
+                        </div>
                         <div class="control-row">
                             <div class="count-input-wrapper">
                                 <span class="input-label">{{ _('数量') }}</span>

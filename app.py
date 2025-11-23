@@ -511,19 +511,26 @@ def generate_qa():
     custom_prompt = db.get_custom_prompt('qa')
     template = custom_prompt['content'] if custom_prompt else None
     
-    prompt = prompts.get_qa_prompt(
-        chapter_title=merged_title,
-        chapter_content=merged_content,
-        custom_template=template,
-        count=count
-    )
+    mode = data.get('mode', 'standard')
     
     try:
-        # Call LLM
-        response = llm_client.generate_text(prompt)
-        
-        # Parse response
-        items = prompts.parse_llm_response(response)
+        items = []
+        if mode == 'multi_agent':
+            from llm.agents import multi_agent_generator
+            print("Using Multi-Agent Workflow for QA...")
+            items = multi_agent_generator.run_workflow(merged_content, count, 'qa')
+        else:
+            # Standard generation
+            prompt = prompts.get_qa_prompt(
+                chapter_title=merged_title,
+                chapter_content=merged_content,
+                custom_template=template,
+                count=count
+            )
+            # Call LLM
+            response = llm_client.generate_text(prompt)
+            # Parse response
+            items = prompts.parse_llm_response(response)
         
         # Save to database (target_chapter_id)
         saved_count = 0
@@ -558,6 +565,7 @@ def generate_exercise():
     chapter_id = data.get('chapter_id')
     chapter_ids = data.get('chapter_ids')
     count = data.get('count', 8)  # Default to 8 if not provided
+    mode = data.get('mode', 'standard')
     
     # Handle multiple chapters
     target_chapter_id = chapter_id
@@ -593,45 +601,44 @@ def generate_exercise():
     custom_prompt = db.get_custom_prompt('exercise')
     template = custom_prompt['content'] if custom_prompt else None
     
-    prompt = prompts.get_exercise_prompt(
-        chapter_title=merged_title,
-        chapter_content=merged_content,
-        custom_template=template,
-        count=count
-    )
-    
     try:
-        # Call LLM
-        response = llm_client.generate_text(prompt)
-        
-        # Parse response
-        items = prompts.parse_llm_response(response)
-        
+        items = []
+        if mode == 'multi_agent':
+            from llm.agents import multi_agent_generator
+            print("Using Multi-Agent Workflow for Exercise...")
+            items = multi_agent_generator.run_workflow(merged_content, count, 'exercise')
+        else:
+            prompt = prompts.get_exercise_prompt(
+                chapter_title=merged_title,
+                chapter_content=merged_content,
+                custom_template=template,
+                count=count
+            )
+            response = llm_client.generate_text(prompt)
+            items = prompts.parse_llm_response(response)
+            
         # Save to database
         saved_count = 0
         for item in items:
-            if prompts.validate_exercise_item(item):
-                options_json = None
-                if item.get('options'):
-                    import json
-                    options_json = json.dumps(item['options'])
-                    
+            # Basic validation
+            if 'question' in item and 'answer' in item:
+                import json
                 db.add_generated_content(
                     chapter_id=target_chapter_id,
                     content_type='exercise',
                     question=item['question'],
                     answer=item['answer'],
-                    explanation=item.get('explanation'),
-                    options_json=options_json
+                    options_json=json.dumps(item.get('options')) if item.get('options') else None,
+                    explanation=item.get('explanation')
                 )
                 saved_count += 1
-                
+    
         return jsonify({
             'message': 'Generation successful',
             'generated_count': saved_count,
             'total_items': len(items)
         })
-        
+
     except Exception as e:
         import traceback
         print(f"ERROR in generate_exercise: {str(e)}")
