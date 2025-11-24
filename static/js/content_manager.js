@@ -145,7 +145,14 @@ function renderContentList() {
                         </div>
                         <span class="badge ${item.content_type}">${typeLabel}</span>
                         <span class="badge ${item.status}">${statusLabel}</span>
+                        <span class="badge ${item.generation_mode === 'multi_agent' ? 'mode-multi' : 'mode-std'}">
+                            ${item.generation_mode === 'multi_agent' ? '🤖 多智能体' : '⚡️ 标准'}
+                        </span>
+                        <span class="badge model-name" title="生成模型">
+                            🧠 ${item.model_name || 'Unknown'}
+                        </span>
                         <span class="chapter-info">所属章节: ${item.chapter_title}</span>
+                        <span class="time-info" title="生成时间">${item.created_at || ''}</span>
                     </div>
                     <div class="card-actions">
                         <button class="btn-icon" onclick="editContent(${item.id})" title="编辑">

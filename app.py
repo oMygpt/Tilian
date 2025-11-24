@@ -515,10 +515,15 @@ def generate_qa():
     
     try:
         items = []
+        requested_model = data.get('model')
+        model_id = llm_client.get_active_model_id(requested_model)
+
         if mode == 'multi_agent':
             from llm.agents import multi_agent_generator
-            print("Using Multi-Agent Workflow for QA...")
-            items = multi_agent_generator.run_workflow(merged_content, count, 'qa')
+            import uuid
+            workflow_id = str(uuid.uuid4())
+            print(f"Using Multi-Agent Workflow for QA (ID: {workflow_id})...")
+            items = multi_agent_generator.run_workflow(merged_content, count, 'qa', workflow_id, target_chapter_id, model_id)
         else:
             # Standard generation
             prompt = prompts.get_qa_prompt(
@@ -528,7 +533,7 @@ def generate_qa():
                 count=count
             )
             # Call LLM
-            response = llm_client.generate_text(prompt)
+            response = llm_client.generate_text(prompt, provider_id=model_id)
             # Parse response
             items = prompts.parse_llm_response(response)
         
@@ -541,7 +546,9 @@ def generate_qa():
                     content_type='qa',
                     question=item['question'],
                     answer=item['answer'],
-                    explanation=item.get('explanation')
+                    explanation=item.get('explanation'),
+                    model_name=model_id,
+                    generation_mode='multi_agent' if mode == 'multi_agent' else 'standard'
                 )
                 saved_count += 1
                 
@@ -603,10 +610,16 @@ def generate_exercise():
     
     try:
         items = []
+        # Get model_id from request, defaulting to None (which will fallback to default provider)
+        requested_model = data.get('model')
+        model_id = llm_client.get_active_model_id(requested_model)
+
         if mode == 'multi_agent':
             from llm.agents import multi_agent_generator
-            print("Using Multi-Agent Workflow for Exercise...")
-            items = multi_agent_generator.run_workflow(merged_content, count, 'exercise')
+            import uuid
+            workflow_id = str(uuid.uuid4())
+            print(f"Using Multi-Agent Workflow for Exercise (ID: {workflow_id})...")
+            items = multi_agent_generator.run_workflow(merged_content, count, 'exercise', workflow_id, target_chapter_id, model_id)
         else:
             prompt = prompts.get_exercise_prompt(
                 chapter_title=merged_title,
@@ -614,7 +627,7 @@ def generate_exercise():
                 custom_template=template,
                 count=count
             )
-            response = llm_client.generate_text(prompt)
+            response = llm_client.generate_text(prompt, provider_id=model_id)
             items = prompts.parse_llm_response(response)
             
         # Save to database
@@ -629,7 +642,9 @@ def generate_exercise():
                     question=item['question'],
                     answer=item['answer'],
                     options_json=json.dumps(item.get('options')) if item.get('options') else None,
-                    explanation=item.get('explanation')
+                    explanation=item.get('explanation'),
+                    model_name=model_id,
+                    generation_mode='multi_agent' if mode == 'multi_agent' else 'standard'
                 )
                 saved_count += 1
     
@@ -669,6 +684,9 @@ def generate_qa_stream():
             custom_prompt = db.get_custom_prompt('qa')
             template = custom_prompt['content'] if custom_prompt else None
             
+            requested_model = data.get('model')
+            model_id = llm_client.get_active_model_id(requested_model)
+
             prompt = prompts.get_qa_prompt(
                 chapter_title=chapter['title'],
                 chapter_content=chapter['content_md'],
@@ -679,7 +697,7 @@ def generate_qa_stream():
             # Step 2: Calling LLM
             yield f"data: {json.dumps({'type': 'status', 'message': '正在调用LLM...', 'progress': 10})}\n\n"
             
-            response = llm_client.generate_text(prompt)
+            response = llm_client.generate_text(prompt, provider_id=model_id)
             
             # Step 3: Received response
             yield f"data: {json.dumps({'type': 'status', 'message': '已接收响应，正在解析...', 'progress': 50})}\n\n"
@@ -699,7 +717,9 @@ def generate_qa_stream():
                         question=item['question'],
                         answer=item['answer'],
                         explanation=item.get('explanation'),
-                        options_json=None
+                        options_json=None,
+                        model_name=model_id,
+                        generation_mode='standard'
                     )
                     saved_count += 1
                     
@@ -739,6 +759,9 @@ def generate_exercise_stream():
             custom_prompt = db.get_custom_prompt('exercise')
             template = custom_prompt['content'] if custom_prompt else None
             
+            requested_model = data.get('model')
+            model_id = llm_client.get_active_model_id(requested_model)
+
             prompt = prompts.get_exercise_prompt(
                 chapter_title=chapter['title'],
                 chapter_content=chapter['content_md'],
@@ -749,7 +772,7 @@ def generate_exercise_stream():
             # Step 2: Calling LLM
             yield f"data: {json.dumps({'type': 'status', 'message': '正在调用LLM...', 'progress': 10})}\n\n"
             
-            response = llm_client.generate_text(prompt)
+            response = llm_client.generate_text(prompt, provider_id=model_id)
             
             # Step 3: Received response
             yield f"data: {json.dumps({'type': 'status', 'message': '已接收响应，正在解析...', 'progress': 50})}\n\n"
@@ -773,7 +796,9 @@ def generate_exercise_stream():
                         question=item['question'],
                         answer=item['answer'],
                         explanation=item.get('explanation'),
-                        options_json=options_json
+                        options_json=options_json,
+                        model_name=model_id,
+                        generation_mode='standard'
                     )
                     saved_count += 1
                     

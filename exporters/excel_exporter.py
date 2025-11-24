@@ -25,6 +25,8 @@ class ExcelExporter:
             '答案',
             '解析',
             '生成模型',
+            '生成模式',
+            '生成时间',
             '校验状态'
         ]
     
@@ -103,13 +105,20 @@ class ExcelExporter:
                     model_info += f" ({content['model_version']})"
                 ws.cell(row, 9, model_info)
                 
+                # Generation Mode
+                mode_cn = '多智能体' if content.get('generation_mode') == 'multi_agent' else '标准'
+                ws.cell(row, 10, mode_cn)
+                
+                # Generation Time
+                ws.cell(row, 11, content['created_at'])
+                
                 # Status
                 status_cn = {
                     'pending': '待生成',
                     'generated': '已生成',
                     'verified': '已校验'
                 }.get(content['status'], content['status'])
-                ws.cell(row, 10, status_cn)
+                ws.cell(row, 12, status_cn)
                 
                 row += 1
         
@@ -145,7 +154,9 @@ class ExcelExporter:
             'G': 30,   # 答案
             'H': 50,   # 解析
             'I': 20,   # 生成模型
-            'J': 12    # 校验状态
+            'J': 12,   # 生成模式
+            'K': 20,   # 生成时间
+            'L': 12    # 校验状态
         }
         
         for col, width in column_widths.items():
@@ -214,13 +225,20 @@ class ExcelExporter:
                 model_info += f" ({content['model_version']})"
             ws.cell(row, 9, model_info)
             
+            # Generation Mode
+            mode_cn = '多智能体' if content.get('generation_mode') == 'multi_agent' else '标准'
+            ws.cell(row, 10, mode_cn)
+            
+            # Generation Time
+            ws.cell(row, 11, content.get('created_at', ''))
+            
             # Status
             status_cn = {
                 'pending': '待生成',
                 'generated': '已生成',
                 'verified': '已校验'
             }.get(content['status'], content['status'])
-            ws.cell(row, 10, status_cn)
+            ws.cell(row, 12, status_cn)
             
             row += 1
             
@@ -294,6 +312,9 @@ class ExcelExporter:
                     model_info = f"{content['model_name']}"
                     if content.get('model_version'):
                         model_info += f" ({content['model_version']})"
+                        
+                    # Generation Mode
+                    mode_cn = '多智能体' if content.get('generation_mode') == 'multi_agent' else '标准'
                     
                     row = [
                         chapter['id'],
@@ -305,6 +326,8 @@ class ExcelExporter:
                         content['answer'],
                         content.get('explanation', ''),
                         model_info,
+                        mode_cn,
+                        content['created_at'],
                         status_cn
                     ]
                     

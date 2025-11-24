@@ -134,6 +134,33 @@ class KimiProvider(LLMProvider):
             raise Exception(f"Kimi generation failed: {str(e)}")
 
 
+class VolcengineProvider(LLMProvider):
+    """Volcengine (Ark) provider"""
+    
+    def __init__(self, api_key: str, model_config: Dict):
+        super().__init__(api_key, model_config)
+        from openai import OpenAI
+        # Volcengine uses OpenAI-compatible API
+        self.client = OpenAI(
+            api_key=self.api_key,
+            base_url="https://ark.cn-beijing.volces.com/api/v3"
+        )
+    
+    def generate(self, prompt: str, **kwargs) -> str:
+        """Generate content using Volcengine"""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_id,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=kwargs.get('temperature', self.temperature),
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise Exception(f"Volcengine generation failed: {str(e)}")
+
+
 class LLMRouter:
     """Routes requests to appropriate LLM provider"""
     
@@ -174,6 +201,12 @@ class LLMRouter:
                     config.KIMI_API_KEY,
                     model_config
                 )
+            
+            elif provider_type == 'volcengine' and config.VOLCENGINE_API_KEY:
+                self.providers[model_key] = VolcengineProvider(
+                    config.VOLCENGINE_API_KEY,
+                    model_config
+                )
     
     def get_available_models(self) -> List[Dict[str, Any]]:
         """Get list of available models"""
@@ -210,12 +243,17 @@ class LLMClient:
         self.router = router
         self.default_provider = 'deepseek-v3'  # Default to deepseek-v3
     
-    def generate_text(self, prompt: str, provider_id: str = None, **kwargs) -> str:
-        """Generate text using default or specified provider"""
+    def get_active_model_id(self, provider_id: str = None) -> str:
+        """Get the actual model ID that will be used"""
         pid = provider_id or self.default_provider
         # Fallback to first available provider if default not available
         if pid not in self.router.providers and self.router.providers:
             pid = list(self.router.providers.keys())[0]
+        return pid
+
+    def generate_text(self, prompt: str, provider_id: str = None, **kwargs) -> str:
+        """Generate text using default or specified provider"""
+        pid = self.get_active_model_id(provider_id)
         return self.router.generate(pid, prompt, **kwargs)
 
 llm_client = LLMClient(llm_router)

@@ -37,6 +37,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
 KIMI_API_KEY = os.getenv('KIMI_API_KEY', '')
+VOLCENGINE_API_KEY = os.getenv('VOLCENGINE_API_KEY', '')
 
 # LLM Model configurations
 LLM_MODELS = {
@@ -88,6 +89,36 @@ LLM_MODELS = {
         'model_id': 'moonshot-v1-128k', # Using stable alias, assuming K2 maps to this or newer
         'max_tokens': 256000, # 256k context window
         'temperature': 0.7,
+    },
+    
+    # Volcengine Models
+    'deepseek-r1-volc': {
+        'provider': 'volcengine',
+        'name': 'DeepSeek R1 (Volcengine)',
+        'model_id': 'deepseek-r1-250528',
+        'max_tokens': 64000, # Adjust as needed
+        'temperature': 0.7,
+    },
+    'deepseek-v3-volc': {
+        'provider': 'volcengine',
+        'name': 'DeepSeek V3 (Volcengine)',
+        'model_id': 'deepseek-v3-1-terminus',
+        'max_tokens': 64000,
+        'temperature': 0.7,
+    },
+    'doubao-thinking': {
+        'provider': 'volcengine',
+        'name': 'Doubao Thinking',
+        'model_id': 'doubao-seed-1-6-thinking-250715',
+        'max_tokens': 32000, # Adjust as needed
+        'temperature': 0.7,
+    },
+    'kimi-k2-volc': {
+        'provider': 'volcengine',
+        'name': 'Kimi K2 (Volcengine)',
+        'model_id': 'kimi-k2-250905',
+        'max_tokens': 128000,
+        'temperature': 0.7,
     }
 }
 
@@ -124,6 +155,8 @@ def get_available_models():
         elif provider == 'deepseek' and DEEPSEEK_API_KEY:
             available.append(model_key)
         elif provider == 'kimi' and KIMI_API_KEY:
+            available.append(model_key)
+        elif provider == 'volcengine' and VOLCENGINE_API_KEY:
             available.append(model_key)
             
     return available

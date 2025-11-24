@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS generated_content (
     explanation TEXT,
     model_name TEXT NOT NULL,
     model_version TEXT,
+    generation_mode TEXT DEFAULT 'standard',
     status TEXT DEFAULT 'generated' CHECK(status IN ('pending', 'generated', 'verified')),
     verified_at DATETIME,
     verified_by TEXT,
@@ -90,6 +91,20 @@ CREATE TABLE IF NOT EXISTS parse_tasks (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+);
+
+-- Agent Workflow Logs table: stores intermediate steps of multi-agent workflows
+CREATE TABLE IF NOT EXISTS agent_workflow_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_id TEXT NOT NULL,
+    chapter_id INTEGER,
+    agent_name TEXT NOT NULL,
+    step_name TEXT NOT NULL,
+    input_data TEXT,
+    output_data TEXT,
+    model_name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE SET NULL
 );
 
 -- Create indexes for better query performance

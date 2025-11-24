@@ -304,6 +304,32 @@
     border: 1px solid rgba(180, 83, 9, 0.1);
 }
 
+.badge.mode-multi {
+    background: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid rgba(126, 34, 206, 0.1);
+}
+
+.badge.mode-std {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid rgba(194, 65, 12, 0.1);
+}
+
+.badge.model-name {
+    background: #eef2ff;
+    color: #4338ca;
+    border: 1px solid rgba(67, 56, 202, 0.1);
+    font-family: monospace;
+}
+
+.time-info {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+    margin-left: 0.5rem;
+}
+
 .chapter-info {
     font-size: 0.85rem;
     color: var(--text-secondary);

@@ -16,22 +16,34 @@ class MultiAgentGenerator:
     
     def __init__(self):
         self.client = llm_client
+        from database import db
+        self.db = db
 
-    def analyze_content(self, content: str) -> List[Dict[str, Any]]:
+    def analyze_content(self, content: str, workflow_id: str, chapter_id: int, model_id: str = None) -> List[Dict[str, Any]]:
         """
         Agent A: Analyze content to extract contexts.
         """
         print("Agent A: Analyzing content...")
         prompt = format_prompt(agent_prompts.ANALYZER_PROMPT, chapter_content=content[:15000]) # Truncate if too long
-        response = self.client.generate_text(prompt)
+        
+        # Log input
+        self.db.create_agent_log(workflow_id, chapter_id, 'Agent A', 'Input', input_data=prompt)
+        
+        response = self.client.generate_text(prompt, provider_id=model_id)
+        active_model_id = self.client.get_active_model_id(model_id)
+        
+        # Log output
+        self.db.create_agent_log(workflow_id, chapter_id, 'Agent A', 'Output', output_data=response, model_name=active_model_id)
+        
         try:
             contexts = parse_llm_response(response)
             return contexts
         except Exception as e:
             print(f"Agent A failed: {e}")
+            self.db.create_agent_log(workflow_id, chapter_id, 'Agent A', 'Error', output_data=str(e))
             return []
 
-    def generate_initial_items(self, contexts: List[Dict[str, Any]], count: int, item_type: str) -> List[Dict[str, Any]]:
+    def generate_initial_items(self, contexts: List[Dict[str, Any]], count: int, item_type: str, workflow_id: str, chapter_id: int, model_id: str = None) -> List[Dict[str, Any]]:
         """
         Agent B: Generate initial items based on contexts.
         """
@@ -44,7 +56,7 @@ class MultiAgentGenerator:
         # Distribute count among contexts
         items_per_context = math.ceil(count / len(contexts))
         
-        for context in contexts:
+        for i, context in enumerate(contexts):
             if len(items) >= count:
                 break
                 
@@ -67,8 +79,16 @@ class MultiAgentGenerator:
                 source_text=source_text
             )
             
+            # Log input
+            self.db.create_agent_log(workflow_id, chapter_id, 'Agent B', f'Input (Context {i})', input_data=prompt)
+            
             try:
-                response = self.client.generate_text(prompt)
+                response = self.client.generate_text(prompt, provider_id=model_id)
+                active_model_id = self.client.get_active_model_id(model_id)
+                
+                # Log output
+                self.db.create_agent_log(workflow_id, chapter_id, 'Agent B', f'Output (Context {i})', output_data=response, model_name=active_model_id)
+                
                 batch_items = parse_llm_response(response)
                 
                 # Normalize items
@@ -94,11 +114,12 @@ class MultiAgentGenerator:
                         break
             except Exception as e:
                 print(f"Agent B failed for context {topic}: {e}")
+                self.db.create_agent_log(workflow_id, chapter_id, 'Agent B', f'Error (Context {i})', output_data=str(e))
                 continue
                 
         return items[:count]
 
-    def review_items(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def review_items(self, items: List[Dict[str, Any]], workflow_id: str, chapter_id: int, model_id: str = None) -> List[Dict[str, Any]]:
         """
         Agent C: Review items.
         """
@@ -121,8 +142,16 @@ class MultiAgentGenerator:
                 items_json=json.dumps(batch_with_index, ensure_ascii=False, indent=2)
             )
             
+            # Log input
+            self.db.create_agent_log(workflow_id, chapter_id, 'Agent C', f'Input (Batch {i})', input_data=prompt)
+            
             try:
-                response = self.client.generate_text(prompt)
+                response = self.client.generate_text(prompt, provider_id=model_id)
+                active_model_id = self.client.get_active_model_id(model_id)
+                
+                # Log output
+                self.db.create_agent_log(workflow_id, chapter_id, 'Agent C', f'Output (Batch {i})', output_data=response, model_name=active_model_id)
+                
                 batch_reviews = parse_llm_response(response)
                 
                 # Adjust index to global
@@ -131,10 +160,11 @@ class MultiAgentGenerator:
                     reviews.append(review)
             except Exception as e:
                 print(f"Agent C failed for batch {i}: {e}")
+                self.db.create_agent_log(workflow_id, chapter_id, 'Agent C', f'Error (Batch {i})', output_data=str(e))
                 
         return reviews
 
-    def refine_items(self, items: List[Dict[str, Any]], reviews: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def refine_items(self, items: List[Dict[str, Any]], reviews: List[Dict[str, Any]], workflow_id: str, chapter_id: int, model_id: str = None) -> List[Dict[str, Any]]:
         """
         Agent D: Refine items based on reviews.
         """
@@ -161,8 +191,15 @@ class MultiAgentGenerator:
                     suggestion=suggestion
                 )
                 
+                # Log input
+                self.db.create_agent_log(workflow_id, chapter_id, 'Agent D', f'Input (Item {idx})', input_data=prompt)
+                
                 try:
-                    response = self.client.generate_text(prompt)
+                    response = self.client.generate_text(prompt, provider_id=model_id)
+                    active_model_id = self.client.get_active_model_id(model_id)
+                    
+                    # Log output
+                    self.db.create_agent_log(workflow_id, chapter_id, 'Agent D', f'Output (Item {idx})', output_data=response, model_name=active_model_id)
                     
                     # Agent D returns a single JSON object
                     # We need to extract it carefully
@@ -188,15 +225,16 @@ class MultiAgentGenerator:
                         
                 except Exception as e:
                     print(f"Agent D failed for item {idx}: {e}")
+                    self.db.create_agent_log(workflow_id, chapter_id, 'Agent D', f'Error (Item {idx})', output_data=str(e))
                     
         return refined_items
 
-    def run_workflow(self, content: str, count: int, item_type: str = 'qa') -> List[Dict[str, Any]]:
+    def run_workflow(self, content: str, count: int, item_type: str = 'qa', workflow_id: str = None, chapter_id: int = None, model_id: str = None) -> List[Dict[str, Any]]:
         """
         Run the full multi-agent workflow.
         """
         # Step 1: Analyze
-        contexts = self.analyze_content(content)
+        contexts = self.analyze_content(content, workflow_id, chapter_id, model_id)
         if not contexts:
             # Fallback: Create a dummy context with whole content
             contexts = [{
@@ -206,15 +244,15 @@ class MultiAgentGenerator:
             }]
             
         # Step 2: Generate
-        items = self.generate_initial_items(contexts, count, item_type)
+        items = self.generate_initial_items(contexts, count, item_type, workflow_id, chapter_id, model_id)
         if not items:
             return []
             
         # Step 3: Review
-        reviews = self.review_items(items)
+        reviews = self.review_items(items, workflow_id, chapter_id, model_id)
         
         # Step 4: Refine
-        final_items = self.refine_items(items, reviews)
+        final_items = self.refine_items(items, reviews, workflow_id, chapter_id, model_id)
         
         return final_items
 

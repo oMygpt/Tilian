@@ -407,15 +407,29 @@ class Database:
     
     def add_generated_content(self, chapter_id: int, content_type: str, question: str, 
                              answer: str, explanation: str = None, options_json: str = None,
-                             model_name: str = 'deepseek-chat') -> int:
+                             model_name: str = 'deepseek-chat', generation_mode: str = 'standard') -> int:
         """Add a generated content item (QA or exercise)"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """INSERT INTO generated_content 
-                   (chapter_id, content_type, question, options_json, answer, explanation, model_name, status) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'generated')""",
-                (chapter_id, content_type, question, options_json, answer, explanation, model_name)
+                   (chapter_id, content_type, question, options_json, answer, explanation, model_name, generation_mode, status) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'generated')""",
+                (chapter_id, content_type, question, options_json, answer, explanation, model_name, generation_mode)
+            )
+            return cursor.lastrowid
+
+    def create_agent_log(self, workflow_id: str, chapter_id: int, agent_name: str, 
+                        step_name: str, input_data: str = None, output_data: str = None,
+                        model_name: str = None) -> int:
+        """Create a new agent workflow log entry"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """INSERT INTO agent_workflow_logs 
+                   (workflow_id, chapter_id, agent_name, step_name, input_data, output_data, model_name) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (workflow_id, chapter_id, agent_name, step_name, input_data, output_data, model_name)
             )
             return cursor.lastrowid
 
