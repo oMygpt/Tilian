@@ -2,3 +2,5 @@
 .env
 .env
 data/parsed/
+data/uploads/
+data/
