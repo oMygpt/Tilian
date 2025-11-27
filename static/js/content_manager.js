@@ -152,7 +152,7 @@ function renderContentList() {
                             🧠 ${item.model_name || 'Unknown'}
                         </span>
                         <span class="chapter-info">所属章节: ${item.chapter_title}</span>
-                        <span class="time-info" title="生成时间">${item.created_at || ''}</span>
+                        <span class="time-info" title="生成时间">${new Date(item.created_at + 'Z').toLocaleString()}</span>
                     </div>
                     <div class="card-actions">
                         <button class="btn-icon" onclick="editContent(${item.id})" title="编辑">

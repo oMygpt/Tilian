@@ -43,7 +43,7 @@ class MultiAgentGenerator:
             self.db.create_agent_log(workflow_id, chapter_id, 'Agent A', 'Error', output_data=str(e))
             return []
 
-    def generate_initial_items(self, contexts: List[Dict[str, Any]], count: int, item_type: str, workflow_id: str, chapter_id: int, model_id: str = None) -> List[Dict[str, Any]]:
+    def generate_initial_items(self, contexts: List[Dict[str, Any]], count: int, item_type: str, workflow_id: str, chapter_id: int, model_id: str = None, exercise_type: str = None, language: str = 'zh') -> List[Dict[str, Any]]:
         """
         Agent B: Generate initial items based on contexts.
         """
@@ -55,6 +55,8 @@ class MultiAgentGenerator:
             
         # Distribute count among contexts
         items_per_context = math.ceil(count / len(contexts))
+        
+        from llm import prompts
         
         for i, context in enumerate(contexts):
             if len(items) >= count:
@@ -68,16 +70,28 @@ class MultiAgentGenerator:
             if item_type == 'qa': 
                 # Use MCQ prompt for QA as per design, but we'll need to adapt the output
                 prompt_template = agent_prompts.GENERATOR_MCQ_PROMPT
+                
+                prompt = format_prompt(
+                    prompt_template,
+                    count=items_per_context,
+                    topic=topic,
+                    concepts=concepts,
+                    source_text=source_text
+                )
             else: # exercise
-                prompt_template = agent_prompts.GENERATOR_EXERCISE_PROMPT
-            
-            prompt = format_prompt(
-                prompt_template,
-                count=items_per_context,
-                topic=topic,
-                concepts=concepts,
-                source_text=source_text
-            )
+                # Use specific template from DB if available
+                custom_prompt = self.db.get_custom_prompt('exercise', exercise_type)
+                template = custom_prompt['content'] if custom_prompt else None
+                
+                # Use prompts.get_exercise_prompt to format, mapping context to chapter fields
+                prompt = prompts.get_exercise_prompt(
+                    chapter_title=topic,
+                    chapter_content=source_text,
+                    custom_template=template,
+                    count=items_per_context,
+                    exercise_type=exercise_type,
+                    language=language
+                )
             
             # Log input
             self.db.create_agent_log(workflow_id, chapter_id, 'Agent B', f'Input (Context {i})', input_data=prompt)
@@ -229,7 +243,7 @@ class MultiAgentGenerator:
                     
         return refined_items
 
-    def run_workflow(self, content: str, count: int, item_type: str = 'qa', workflow_id: str = None, chapter_id: int = None, model_id: str = None) -> List[Dict[str, Any]]:
+    def run_workflow(self, content: str, count: int, item_type: str = 'qa', workflow_id: str = None, chapter_id: int = None, model_id: str = None, exercise_type: str = None, language: str = 'zh') -> List[Dict[str, Any]]:
         """
         Run the full multi-agent workflow.
         """
@@ -244,7 +258,7 @@ class MultiAgentGenerator:
             }]
             
         # Step 2: Generate
-        items = self.generate_initial_items(contexts, count, item_type, workflow_id, chapter_id, model_id)
+        items = self.generate_initial_items(contexts, count, item_type, workflow_id, chapter_id, model_id, exercise_type, language)
         if not items:
             return []
             

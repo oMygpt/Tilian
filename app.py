@@ -573,6 +573,9 @@ def generate_exercise():
     chapter_ids = data.get('chapter_ids')
     count = data.get('count', 8)  # Default to 8 if not provided
     mode = data.get('mode', 'standard')
+    mode = data.get('mode', 'standard')
+    exercise_type = data.get('exercise_type')
+    language = data.get('language', 'zh')
     
     # Handle multiple chapters
     target_chapter_id = chapter_id
@@ -605,7 +608,7 @@ def generate_exercise():
         return jsonify({'error': 'Chapter ID or Chapter IDs required'}), 400
         
     # Get custom prompt if exists
-    custom_prompt = db.get_custom_prompt('exercise')
+    custom_prompt = db.get_custom_prompt('exercise', exercise_type)
     template = custom_prompt['content'] if custom_prompt else None
     
     try:
@@ -619,13 +622,15 @@ def generate_exercise():
             import uuid
             workflow_id = str(uuid.uuid4())
             print(f"Using Multi-Agent Workflow for Exercise (ID: {workflow_id})...")
-            items = multi_agent_generator.run_workflow(merged_content, count, 'exercise', workflow_id, target_chapter_id, model_id)
+            items = multi_agent_generator.run_workflow(merged_content, count, 'exercise', workflow_id, target_chapter_id, model_id, exercise_type, language)
         else:
             prompt = prompts.get_exercise_prompt(
                 chapter_title=merged_title,
                 chapter_content=merged_content,
                 custom_template=template,
-                count=count
+                count=count,
+                exercise_type=exercise_type,
+                language=language
             )
             response = llm_client.generate_text(prompt, provider_id=model_id)
             items = prompts.parse_llm_response(response)
@@ -644,7 +649,10 @@ def generate_exercise():
                     options_json=json.dumps(item.get('options')) if item.get('options') else None,
                     explanation=item.get('explanation'),
                     model_name=model_id,
-                    generation_mode='multi_agent' if mode == 'multi_agent' else 'standard'
+                    generation_mode='multi_agent' if mode == 'multi_agent' else 'standard',
+                    exercise_type=exercise_type,
+                    knowledge_point=item.get('knowledge_point'),
+                    language=language
                 )
                 saved_count += 1
     
@@ -742,6 +750,8 @@ def generate_exercise_stream():
     data = request.json
     chapter_id = data.get('chapter_id')
     count = data.get('count', 8)
+    exercise_type = data.get('exercise_type')
+    language = data.get('language', 'zh')
     
     if not chapter_id:
         return jsonify({'error': 'Chapter ID is required'}), 400
@@ -756,7 +766,7 @@ def generate_exercise_stream():
             yield f"data: {json.dumps({'type': 'status', 'message': '正在准备生成...', 'progress': 5})}\n\n"
             
             # Get custom prompt
-            custom_prompt = db.get_custom_prompt('exercise')
+            custom_prompt = db.get_custom_prompt('exercise', exercise_type)
             template = custom_prompt['content'] if custom_prompt else None
             
             requested_model = data.get('model')
@@ -766,7 +776,9 @@ def generate_exercise_stream():
                 chapter_title=chapter['title'],
                 chapter_content=chapter['content_md'],
                 custom_template=template,
-                count=count
+                count=count,
+                exercise_type=exercise_type,
+                language=language
             )
             
             # Step 2: Calling LLM
@@ -798,7 +810,10 @@ def generate_exercise_stream():
                         explanation=item.get('explanation'),
                         options_json=options_json,
                         model_name=model_id,
-                        generation_mode='standard'
+                        generation_mode='standard',
+                        exercise_type=exercise_type,
+                        knowledge_point=item.get('knowledge_point'),
+                        language=language
                     )
                     saved_count += 1
                     
@@ -815,38 +830,7 @@ def generate_exercise_stream():
     return Response(generate(), mimetype='text/event-stream')
 
 
-@app.route('/api/prompts', methods=['GET', 'POST'])
-def manage_prompts():
-    """Get or create prompt templates"""
-    if request.method == 'GET':
-        prompt_type = request.args.get('type')
-        prompts = db.get_all_prompts(prompt_type)
-        return jsonify(prompts)
-    else:  # POST
-        data = request.json
-        prompt_type = data.get('prompt_type')
-        name = data.get('name')
-        content = data.get('content')
-        
-        if not all([prompt_type, name, content]):
-            return jsonify({'error': 'Missing required fields'}), 400
-        
-        prompt_id = db.create_prompt(prompt_type, name, content)
-        return jsonify({'success': True, 'id': prompt_id})
 
-
-
-@app.route('/api/prompts/<int:prompt_id>', methods=['PUT'])
-def update_prompt_route(prompt_id):
-    """Update prompt template"""
-    data = request.json
-    content = data.get('content')
-    
-    if not content:
-        return jsonify({'error': 'Content is required'}), 400
-    
-    success = db.update_prompt(prompt_id, content)
-    return jsonify({'success': success})
 
 
 
@@ -1115,6 +1099,44 @@ def serve_static(path):
     """Serve static files"""
     return send_from_directory('static', path)
 
+
+@app.route('/prompts')
+def manage_prompts():
+    """Render prompt management page"""
+    return render_template('prompts.html')
+
+@app.route('/api/prompts', methods=['GET'])
+def get_prompts():
+    """Get all prompts"""
+    prompts = db.get_all_prompts()
+    return jsonify(prompts)
+
+@app.route('/api/prompts/<prompt_type>', methods=['GET'])
+def get_prompt(prompt_type):
+    """Get a specific prompt"""
+    # Handle exercise subtypes
+    exercise_type = request.args.get('exercise_type')
+    prompt = db.get_custom_prompt(prompt_type, exercise_type)
+    if not prompt:
+        return jsonify({'error': 'Prompt not found'}), 404
+    return jsonify(prompt)
+
+@app.route('/api/prompts', methods=['POST'])
+def save_prompt():
+    """Save a prompt"""
+    data = request.json
+    prompt_type = data.get('prompt_type')
+    name = data.get('name')
+    content = data.get('content')
+    
+    if not all([prompt_type, name, content]):
+        return jsonify({'error': 'Missing required fields'}), 400
+        
+    try:
+        prompt_id = db.save_prompt(prompt_type, name, content)
+        return jsonify({'message': 'Prompt saved', 'id': prompt_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Validate configuration before starting

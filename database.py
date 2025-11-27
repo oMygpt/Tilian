@@ -7,6 +7,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+from datetime import datetime
 import config
 
 
@@ -87,6 +88,13 @@ class Database:
                 values.append(value)
         
         placeholders = ', '.join(['?' for _ in values])
+        # Explicitly set created_at to local time
+        fields.append('created_at')
+        fields.append('updated_at')
+        values.append(datetime.now())
+        values.append(datetime.now())
+        placeholders += ', ?, ?'
+        
         query = f"INSERT INTO books ({', '.join(fields)}) VALUES ({placeholders})"
         
         return self.execute_insert(query, tuple(values))
@@ -146,6 +154,13 @@ class Database:
                 values.append(value)
         
         placeholders = ', '.join(['?' for _ in values])
+        # Explicitly set created_at to local time
+        fields.append('created_at')
+        fields.append('updated_at')
+        values.append(datetime.now())
+        values.append(datetime.now())
+        placeholders += ', ?, ?'
+        
         query = f"INSERT INTO chapters ({', '.join(fields)}) VALUES ({placeholders})"
         
         return self.execute_insert(query, tuple(values))
@@ -230,6 +245,11 @@ class Database:
         else:
             fields = ['chapter_id'] + list(kwargs.keys())
             values = [chapter_id] + list(kwargs.values())
+            
+            # Add timestamps
+            fields.extend(['created_at', 'updated_at'])
+            values.extend([datetime.now(), datetime.now()])
+            
             placeholders = ', '.join(['?' for _ in values])
             query = f"INSERT INTO user_preferences ({', '.join(fields)}) VALUES ({placeholders})"
             return self.execute_insert(query, tuple(values))
@@ -284,8 +304,8 @@ class Database:
     def create_parse_task(self, book_id: int, task_id: str) -> int:
         """Create a new parse task"""
         return self.execute_insert(
-            "INSERT INTO parse_tasks (book_id, task_id) VALUES (?, ?)",
-            (book_id, task_id)
+            "INSERT INTO parse_tasks (book_id, task_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (book_id, task_id, datetime.now(), datetime.now())
         )
     
     def update_parse_task(self, task_id: str, **kwargs) -> int:
@@ -308,7 +328,7 @@ class Database:
         return results[0] if results else None
 
     def search_generated_content(self, book_id: int, chapter_ids: List[int] = None, 
-                               content_type: str = None, status: str = None, 
+                               content_type: str = None, exercise_type: str = None, status: str = None, 
                                keyword: str = None) -> List[Dict]:
         """Search generated content with filters"""
         query = """
@@ -327,6 +347,10 @@ class Database:
         if content_type:
             query += " AND gc.content_type = ?"
             params.append(content_type)
+
+        if exercise_type:
+            query += " AND gc.exercise_type = ?"
+            params.append(exercise_type)
             
         if status:
             query += " AND gc.status = ?"
@@ -359,15 +383,24 @@ class Database:
     
     # ============= Prompt Management =============
     
-    def get_custom_prompt(self, prompt_type: str) -> Optional[Dict]:
+    def get_custom_prompt(self, prompt_type: str, exercise_type: str = None) -> Optional[Dict]:
         """Get the most recent custom prompt for a given type (qa or exercise)"""
+        target_type = prompt_type
+        if prompt_type == 'exercise' and exercise_type:
+            target_type = f"exercise_{exercise_type}"
+            
         results = self.execute_query(
             """SELECT * FROM llm_prompts 
                WHERE prompt_type = ? AND is_global = 1 
                ORDER BY created_at DESC 
                LIMIT 1""",
-            (prompt_type,)
+            (target_type,)
         )
+        
+        # Fallback to generic exercise prompt if specific one not found
+        if not results and prompt_type == 'exercise' and exercise_type:
+            return self.get_custom_prompt('exercise')
+            
         return dict(results[0]) if results else None
     
     def get_all_prompts(self, prompt_type: Optional[str] = None) -> List[Dict]:
@@ -397,25 +430,45 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                """INSERT INTO llm_prompts (prompt_type, name, content, is_global) 
-                   VALUES (?, ?, ?, ?)""",
-                (prompt_type, name, content, 1 if is_global else 0)
+                """INSERT INTO llm_prompts (prompt_type, name, content, is_global, created_at, updated_at) 
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (prompt_type, name, content, 1 if is_global else 0, datetime.now(), datetime.now())
             )
             return cursor.lastrowid
+
+    def save_prompt(self, prompt_type: str, name: str, content: str) -> int:
+        """Save a prompt (update if exists, create otherwise)"""
+        # Check if prompt exists
+        existing = self.get_custom_prompt(prompt_type)
+        
+        if existing:
+            # Update existing
+            self.update_prompt(existing['id'], content)
+            # Also update name if changed
+            with self.get_connection() as conn:
+                conn.execute(
+                    "UPDATE llm_prompts SET name = ? WHERE id = ?",
+                    (name, existing['id'])
+                )
+            return existing['id']
+        else:
+            # Create new
+            return self.create_prompt(prompt_type, name, content)
     
     # ============= Generated Content Management =============
     
     def add_generated_content(self, chapter_id: int, content_type: str, question: str, 
                              answer: str, explanation: str = None, options_json: str = None,
-                             model_name: str = 'deepseek-chat', generation_mode: str = 'standard') -> int:
+                             model_name: str = 'deepseek-chat', generation_mode: str = 'standard',
+                             exercise_type: str = None, knowledge_point: str = None, language: str = 'zh') -> int:
         """Add a generated content item (QA or exercise)"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """INSERT INTO generated_content 
-                   (chapter_id, content_type, question, options_json, answer, explanation, model_name, generation_mode, status) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'generated')""",
-                (chapter_id, content_type, question, options_json, answer, explanation, model_name, generation_mode)
+                   (chapter_id, content_type, question, options_json, answer, explanation, model_name, generation_mode, exercise_type, knowledge_point, language, status, created_at, updated_at) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'generated', ?, ?)""",
+                (chapter_id, content_type, question, options_json, answer, explanation, model_name, generation_mode, exercise_type, knowledge_point, language, datetime.now(), datetime.now())
             )
             return cursor.lastrowid
 
@@ -427,9 +480,9 @@ class Database:
             cursor = conn.cursor()
             cursor.execute(
                 """INSERT INTO agent_workflow_logs 
-                   (workflow_id, chapter_id, agent_name, step_name, input_data, output_data, model_name) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (workflow_id, chapter_id, agent_name, step_name, input_data, output_data, model_name)
+                   (workflow_id, chapter_id, agent_name, step_name, input_data, output_data, model_name, created_at) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (workflow_id, chapter_id, agent_name, step_name, input_data, output_data, model_name, datetime.now())
             )
             return cursor.lastrowid
 

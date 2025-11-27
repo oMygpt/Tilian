@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('提示词管理') }} - LLM Reading Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        .prompt-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .prompt-editor {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .prompt-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .prompt-item {
+            padding: 10px 20px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+        }
+
+        .prompt-item.active {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+
+        textarea {
+            width: 100%;
+            height: 500px;
+            font-family: monospace;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .actions {
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">LLM Reading Assistant</div>
+        <div class="nav-links">
+            <a href="/">{{ _('书架') }}</a>
+            <a href="/prompts" class="active">{{ _('提示词管理') }}</a>
+        </div>
+    </nav>
+
+    <div class="prompt-container">
+        <h1>{{ _('提示词管理') }}</h1>
+
+        <ul class="prompt-list" id="promptList">
+            <li class="prompt-item" data-type="qa" onclick="loadPrompt('qa')">{{ _('问答生成 (QA)') }}</li>
+            <li class="prompt-item" data-type="exercise" onclick="loadPrompt('exercise')">{{ _('习题生成 (通用)') }}</li>
+            <li class="prompt-item" data-type="exercise_single_choice" onclick="loadPrompt('exercise_single_choice')">{{
+                _('习题 - 单选题') }}</li>
+            <li class="prompt-item" data-type="exercise_multiple_choice"
+                onclick="loadPrompt('exercise_multiple_choice')">{{ _('习题 - 多选题') }}</li>
+            <li class="prompt-item" data-type="exercise_calculation" onclick="loadPrompt('exercise_calculation')">{{
+                _('习题 - 计算题') }}</li>
+            <li class="prompt-item" data-type="exercise_short_answer" onclick="loadPrompt('exercise_short_answer')">{{
+                _('习题 - 简答题') }}</li>
+            <li class="prompt-item" data-type="exercise_essay" onclick="loadPrompt('exercise_essay')">{{ _('习题 - 论述题')
+                }}</li>
+        </ul>
+
+        <div class="prompt-editor">
+            <h2 id="currentPromptTitle">{{ _('选择一个提示词类型') }}</h2>
+            <div class="form-group">
+                <label>{{ _('模板名称') }}</label>
+                <input type="text" id="promptName" class="full-width-input"
+                    style="width: 100%; padding: 8px; margin-bottom: 10px;">
+            </div>
+            <div class="form-group">
+                <label>{{ _('模板内容') }}</label>
+                <textarea id="promptContent"></textarea>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="savePrompt()">{{ _('保存修改') }}</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentType = '';
+
+        async function loadPrompt(type) {
+            currentType = type;
+
+            // Update UI
+            document.querySelectorAll('.prompt-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.type === type) item.classList.add('active');
+            });
+
+            try {
+                // Determine API endpoint params
+                let url = `/api/prompts/${type}`;
+                if (type.startsWith('exercise_')) {
+                    // For specific exercise types, we query directly by the full type name now stored in DB
+                    // But our API expects prompt_type='exercise' and exercise_type='subtype' OR just prompt_type='subtype'
+                    // Let's use the direct type since we updated get_custom_prompt to handle it
+                    url = `/api/prompts/${type}`;
+                }
+
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('promptName').value = data.name;
+                    document.getElementById('promptContent').value = data.content;
+                    document.getElementById('currentPromptTitle').textContent = data.name;
+                } else {
+                    // If not found, clear or set default
+                    document.getElementById('promptName').value = type;
+                    document.getElementById('promptContent').value = '';
+                    document.getElementById('currentPromptTitle').textContent = type;
+                }
+            } catch (error) {
+                console.error('Error loading prompt:', error);
+                alert('{{ _("加载失败") }}');
+            }
+        }
+
+        async function savePrompt() {
+            if (!currentType) return;
+
+            const name = document.getElementById('promptName').value;
+            const content = document.getElementById('promptContent').value;
+
+            try {
+                const response = await fetch('/api/prompts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt_type: currentType,
+                        name: name,
+                        content: content
+                    })
+                });
+
+                if (response.ok) {
+                    alert('{{ _("保存成功") }}');
+                } else {
+                    const data = await response.json();
+                    alert('{{ _("保存失败") }}: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error saving prompt:', error);
+                alert('{{ _("保存失败") }}');
+            }
+        }
+
+        // Load first item by default
+        loadPrompt('qa');
+    </script>
+</body>
+
+</html>

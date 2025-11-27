@@ -521,7 +521,9 @@ async function generateContent(type) {
                 chapter_id: currentChapterId,
                 model: currentModel,
                 count: count,
-                mode: mode
+                mode: mode,
+                exercise_type: document.getElementById('exerciseType').value,
+                language: document.getElementById('generationLanguage').value
             })
         });
 
@@ -630,7 +632,9 @@ async function batchGenerate(type) {
                     chapter_id: chapterId,
                     model: currentModel,
                     count: count,
-                    mode: document.getElementById('generationMode').value
+                    mode: document.getElementById('generationMode').value,
+                    exercise_type: document.getElementById('exerciseType').value,
+                    language: document.getElementById('generationLanguage').value
                 })
             });
 

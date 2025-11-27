@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS chapters (
 -- LLM Prompts table: manages prompt templates
 CREATE TABLE IF NOT EXISTS llm_prompts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    prompt_type TEXT NOT NULL CHECK(prompt_type IN ('qa', 'exercise')),
+    prompt_type TEXT NOT NULL,
     name TEXT NOT NULL,
     content TEXT NOT NULL,
     is_global BOOLEAN DEFAULT 1,
@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS generated_content (
     model_name TEXT NOT NULL,
     model_version TEXT,
     generation_mode TEXT DEFAULT 'standard',
+    exercise_type TEXT,
+    knowledge_point TEXT,
+    language TEXT DEFAULT 'zh',
     status TEXT DEFAULT 'generated' CHECK(status IN ('pending', 'generated', 'verified')),
     verified_at DATETIME,
     verified_by TEXT,

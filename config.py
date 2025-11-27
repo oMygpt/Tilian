@@ -52,7 +52,7 @@ LLM_MODELS = {
     'gemini-pro-3.0': {
         'provider': 'gemini',
         'name': 'Gemini Pro 3.0',
-        'model_id': 'gemini-3.0-pro',
+        'model_id': 'gemini-3-pro-preview',
         'max_tokens': 2000000, # 2M context window
         'temperature': 0.7,
     },
