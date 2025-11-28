@@ -1,124 +1,166 @@
 """
 Prompts for Multi-Agent Question Generation Workflow
-Based on STAIR-AIG framework
+Optimized with Educational Theories: Bloom's Taxonomy, Haladyna's Principles, and Authentic Assessment.
 """
 
 # Agent A: Content Analyzer
-ANALYZER_PROMPT = """**Role:** You are an expert in educational content analysis and Natural Language Processing.
-**Task:** Analyze the provided textbook segment.
-**Context:** We need to prepare input data for generating exam questions. Focus on identifying:
-1. Key terminology and definitions (for Factual Questions).
-2. Causal relationships or complex processes (for Reasoning/Open-ended Questions).
-3. Specific data points or scenarios (for Calculation/Real-Scenario exercises).
+# 理论优化：引入 "Knowledge Graph" (知识图谱) 概念和 "Misconception Prediction" (错误概念预判)
+ANALYZER_PROMPT = """## Role
+You are an expert Educational Data Scientist and Curriculum Specialist.
 
+## Task
+Analyze the provided textbook segment to extract structured pedagogical metadata.
+**Target Output Language:** {target_language}
+
+## Input Data
 **Source Text:**
 {chapter_content}
 
-**Format:** Output a structured JSON list of potential "Question Contexts" containing:
+## Analysis Framework
+1.  **Cognitive Targets (Bloom's Taxonomy):** Identify concepts suitable for:
+    * *Remember/Understand:* Definitions, facts.
+    * *Apply/Analyze:* Processes, relationships, logic chains.
+    * *Evaluate/Create:* Strategic decisions, critiques.
+2.  **Misconception Mining:** Identify concepts where students frequently make mistakes or confuse similar terms (crucial for generating distractors later).
+3.  **Authentic Contexts:** Extract real-world scenarios or data sets that can ground abstract concepts in reality.
+
+## Output Format
+Output a structured JSON list. Do not include markdown code blocks.
 [
   {{
-    "Topic": "Topic Name",
+    "Topic": "Topic Name in {target_language}",
     "Key_Concepts": ["Concept 1", "Concept 2"],
-    "Source_Text": "The specific segment from the book...",
+    "Pedagogical_Value": "Briefly explain why this is worth testing (e.g., 'Core prerequisite' or 'Common stumbling block').",
+    "Source_Snippet": "Verbatim quote...",
+    "Potential_Misconceptions": ["List plausible student errors related to this topic..."],
     "Suggested_Question_Type": "MCQ" or "Calculation" or "Short Answer"
   }}
 ]
 """
 
 # Agent B: Item Generator (MCQ)
-GENERATOR_MCQ_PROMPT = """**Role:** You are a lecturer of the subject at a university.
-**Task:** Create {count} multiple-choice questions based on the provided context.
-**Context:** The questions must focus on the content of the provided source text. Ensure the questions align with the PACIER framework (Problem solving, Analysis, Creative thinking, Interpretation, Evaluation, Reasoning).
-**Input:** 
-- Topic: {topic}
-- Key Concepts: {concepts}
+# 理论优化：引入 Haladyna 的 MCQ 编写指南，强调干扰项的“功能性” (Functional Distractors)
+GENERATOR_MCQ_PROMPT = """## Role
+You are a Professor of {topic} specializing in Psychometrics.
+
+## Task
+Construct {count} high-quality Multiple Choice Questions (MCQs).
+
+## Context
+**Target Language:** {target_language}
+**Input:** - Concepts: {concepts}
 - Source Text: {source_text}
 
-**Format:** Present output in JSON format:
+## Design Principles (Strict Adherence)
+1.  **Construct Validity:** The question must test the concept, not reading comprehension or trivia.
+2.  **Distractor Plausibility:** Incorrect options must represent specific logical fallacies or common misconceptions (functional distractors). Avoid "filler" options.
+3.  **Stem Quality:** The question stem must present a complete problem. Avoid negative phrasing (e.g., "Which is NOT...").
+4.  **Grammatical Consistency:** All options must correspond grammatically to the stem.
+
+## Output Format
+Provide a JSON list.
 [
   {{
-    "question": "Question text...",
-    "options": ["A. Option 1", "B. Option 2", "C. Option 3", "D. Option 4"],
-    "answer": "Correct Answer (e.g., A. Option 1)",
-    "explanation": "Detailed explanation..."
+    "design_logic": "Explain the cognitive skill targeted (e.g., 'Analysis'). State the specific misconception each distractor targets.",
+    "question": "The question stem in {target_language}...",
+    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+    "answer": "Correct Answer (e.g., A. Option Text)",
+    "explanation": "Provide a rationale for the correct answer AND explain why each distractor is incorrect in {target_language}."
   }}
 ]
-**Constraint:** Ensure distractors (incorrect answers) are plausible to challenge the student.
 """
 
 # Agent B: Item Generator (Exercise/Calculation)
-GENERATOR_EXERCISE_PROMPT = """**Role:** You are a lecturer of the subject at a university.
-**Task:** Create {count} exercise questions (calculation or scenario-based) based on the provided context.
-**Context:** About {topic}.
-**Input:** 
-- Key Concepts: {concepts}
+# 理论优化：基于“真实性评价” (Authentic Assessment) 和“脚手架理论” (Scaffolding)
+GENERATOR_EXERCISE_PROMPT = """## Role
+You are a Subject Matter Expert designing strict assessment scenarios.
+
+## Task
+Create {count} Calculation or Scenario-based exercises.
+
+## Context
+**Target Language:** {target_language}
+**Input:** - Concepts: {concepts}
 - Source Text: {source_text}
 
-**Tone:** You have to solve the exercise as you are dealing with a real business/scientific context.
-**Method:** Use Chain-of-Thought reasoning. First, outline the formula or logic needed, then generate the question scenarios.
+## Design Principles
+1.  **Situated Cognition:** Embed the problem in a realistic professional or scientific context, not a void.
+2.  **Variable Sufficiency:** Explicitly verify that *Essential Variables* (Given) + *Formulas* (Knowledge) = *Solution* (Unknown). No "magic numbers."
+3.  **Step-by-Step Logic:** The solution must follow a logical derivation chain suitable for academic grading.
 
-**Format:** Present output in JSON format:
+## Output Format
+Provide a JSON list.
 [
   {{
-    "type": "fill" or "essay",
-    "question": "Question text...",
-    "answer": "Correct Answer",
-    "explanation": "Detailed explanation..."
+    "type": "calculation" or "case_study",
+    "design_logic": "Outline the formula/logic first. Verify solvability.",
+    "question": "Full problem statement with all necessary data in {target_language}...",
+    "answer": "Step-by-step solution showing the derivation...",
+    "explanation": "Pedagogical breakdown of the steps in {target_language}..."
   }}
 ]
 """
 
 # Agent C: Item Reviewer
-REVIEWER_PROMPT = """**Role:** You are a strict Item Review Expert specializing in critical thinking assessment.
-**Task:** Systematically evaluate the generated items based on the STAIR-AIG criteria.
+# 理论优化：从“内容审查”升级为“心理测量审查” (Psychometric Review)
+REVIEWER_PROMPT = """## Role
+You are a Lead Psychometrician and Domain Auditor.
 
-**Items to Review:**
-{items_json}
+## Task
+Audit the generated items for structural integrity, validity, and bias.
 
-**Evaluation Methodology:**
-1. **Conceptual Accuracy:** Is the answer logically derivable from the context? Are there hallucinations or missing assumptions?
-2. **Clarity:** Is the terminology vague or overly technical?
-3. **Distractor Quality:** Are the distractors too obvious? (For MCQs)
-4. **Cultural Sensitivity:** Is there any bias?
+## Input
+**Target Language:** {target_language}
+**Items:** {items_json}
 
-**Rating Scale:**
-- Dissatisfied (1): Fundamentally flawed/discard.
-- Neutral (2): Requires revision.
-- Satisfied (3): Suitable for use.
+## Evaluation Matrix
+1.  **Construct Alignment:** Does the item genuinely measure the intended Key Concept?
+2.  **Item Independence:** Does answering this item require knowing the answer to another item? (Should be No).
+3.  **Clueing:** Does the stem contain linguistic cues that give away the answer? (e.g., length, specific determiners).
+4.  **Cognitive Load:** Is the language unnecessarily complex (construct-irrelevant variance)?
+5.  **Scientific Accuracy:** Are the facts/calculations indisputable?
 
-**Format:** Output a JSON list of reviews:
+## Rating Scale
+- Dissatisfied (1): Fatal flaw (e.g., wrong answer, hallucinated data).
+- Neutral (2): Structural/Linguistic issues (e.g., weak distractors, vague phrasing).
+- Satisfied (3): High-quality, exam-ready.
+
+## Output Format
+Output a JSON list of reviews:
 [
   {{
-    "item_index": 0, (Index of the item in the input list)
+    "item_index": 0,
     "rating": 1 or 2 or 3,
-    "critique": "Critique comment...",
-    "suggestion": "Specific revision suggestion..."
+    "critique": "Professional feedback focusing on specific flaws...",
+    "suggestion": "Actionable instruction for the editor in {target_language} (e.g., 'Change Option C to reflect a unit conversion error')..."
   }}
 ]
 """
 
 # Agent D: Refiner
-REFINER_PROMPT = """**Role:** You are an Assessment Editor.
-**Task:** Revise the exam item based on the Reviewer's feedback.
+# 理论优化：强调“迭代优化” (Iterative Refinement) 和“对齐修正”
+REFINER_PROMPT = """## Role
+You are a Senior Assessment Editor.
 
-**Original Item:**
-{original_item}
+## Task
+Refine the exam item based on Psychometric feedback to achieve a 'Satisfied' rating.
 
-**Critique:**
-{critique}
+## Inputs
+**Target Language:** {target_language}
+**Original Item:** {original_item}
+**Critique:** {critique}
+**Suggestion:** {suggestion}
 
-**Suggestion:**
-{suggestion}
+## Refinement Strategy
+1.  **Error Correction:** Fix factual or calculation errors immediately.
+2.  **Distractor Strengthening:** If suggested, replace weak distractors with "plausible misconceptions."
+3.  **Linguistic Polish:** Ensure the tone is academic yet accessible (minimizing construct-irrelevant linguistic complexity).
 
-**Goal:** Address the specific flaws identified.
-1. If the critique mentions "Insufficient assumptions," add the missing data.
-2. If the critique mentions "Obvious distractors," generate harder incorrect options.
-3. Ensure the reading level is appropriate for higher education students.
-
-**Format:** Output the final revised item in JSON format (single object):
+## Output Format
+Output ONLY the final revised item as a single JSON object.
 {{
   "question": "...",
-  "options": [...], (if applicable)
+  "options": [...],
   "answer": "...",
   "explanation": "..."
 }}

@@ -12,19 +12,21 @@
     <div class="container">
         <header>
             <h1>{{ _('题炼') }}</h1>
-            <div class="nav-links">
-                <a href="/" class="active">{{ _('书架') }}</a>
-                <a href="/prompts">{{ _('提示词管理') }}</a>
-            </div>
-            <p class="subtitle">{{ _('Q-Refinery Platform for Exam Question Generation and Review') }}</p>
-            <p class="slogan"
-                style="text-align: center; color: var(--text-secondary); margin-bottom: 2rem; font-style: italic;">{{
-                _('书本如矿，百炼成题') }}</p>
-            <div class="lang-switch" style="position: absolute; top: 1rem; right: 1rem;">
-                <a href="{{ url_for('set_language', lang='zh') }}"
-                    class="btn-text {{ 'active' if session.get('lang', 'zh') == 'zh' else '' }}">中文</a> |
-                <a href="{{ url_for('set_language', lang='en') }}"
-                    class="btn-text {{ 'active' if session.get('lang') == 'en' else '' }}">English</a>
+            <div class="top-nav"
+                style="position: absolute; top: 1rem; right: 1rem; display: flex; gap: 1.5rem; align-items: center;">
+                <div class="nav-links">
+                    <a href="/" class="{{ 'active' if request.path == '/' else '' }}"
+                        style="text-decoration: none; color: var(--text-secondary); font-weight: 500;">{{ _('书架') }}</a>
+                    <a href="/prompts" class="{{ 'active' if request.path == '/prompts' else '' }}"
+                        style="text-decoration: none; color: var(--text-secondary); font-weight: 500;">{{ _('提示词管理')
+                        }}</a>
+                </div>
+                <div class="lang-switch">
+                    <a href="{{ url_for('set_language', lang='zh') }}"
+                        class="btn-text {{ 'active' if session.get('lang', 'zh') == 'zh' else '' }}">中文</a> |
+                    <a href="{{ url_for('set_language', lang='en') }}"
+                        class="btn-text {{ 'active' if session.get('lang') == 'en' else '' }}">English</a>
+                </div>
             </div>
         </header>
 
